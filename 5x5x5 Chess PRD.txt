@@ -1,0 +1,193 @@
+Product Requirements Document – Dimension Chess VR (working title)
+
+1. Executive Summary
+
+Dimension Chess VR is a Meta Quest app that brings 5 × 5 × 5 three‑dimensional chess (based on the historical Raumschach rule‑set) into an immersive multiplayer environment. The goal is to create a comfortable, engaging, and competitive experience that appeals to strategy gamers, chess enthusiasts looking for a fresh challenge, and VR early adopters.
+
+2. Objectives & Success Metrics
+
+Primary objective: Ship a polished VR chess variant that reaches a positive user rating of 4.4 +/5 on the Meta Quest Store within 90 days of launch.
+
+Engagement: Average session length ≥ 15 min, 30‑day retention ≥ 25 %.
+
+Multiplayer adoption: ≥ 60 % of weekly active users play at least one online match per week.
+
+Revenue: Break‑even on development cost within 9 months via paid downloads + cosmetic DLC.
+
+3. Target Audience / Personas
+
+Core Strategist (Alex, 32): Enjoys classic and variant chess, owns a Quest 3, looks for deep competitive play.
+
+Social Gamer (Jordan, 27): Uses VR to connect with friends, values voice chat and quick matchmaking.
+
+Learner (Sam, 18): Attracted by novel board games, needs robust tutorials and AI sparring partners.
+
+4. Use Cases / User Stories
+
+As a new player I can take an interactive tutorial so I understand how pieces move in 3‑D.
+
+As a competitor I can create or join ranked matches with ELO‑style ratings.
+
+As a casual player I can invite a friend for a private game with voice chat.
+
+As a learner I can play against AI of adjustable difficulty and request in‑game hints.
+
+As a spectator I can watch ongoing public matches in an arena‑style view.
+
+5. Functional Requirements
+
+ID
+
+Requirement
+
+ F‑1
+
+5 × 5 × 5 board rendered in volumetric space with clear layer indicators.
+
+ F‑2
+
+Complete Raumschach rule enforcement: piece set (King, Queen, Rook, Bishop, Knight, Unicorn, Pawn), check, mate, promotion.
+
+ F‑3
+
+VR interaction: grab‑and‑place or point‑and‑click movement, 6‑DoF controllers.
+
+ F‑4
+
+Single‑player vs AI with 5 difficulty tiers.
+
+ F‑5
+
+Online multiplayer with public matchmaking, private rooms, cross‑region servers.
+
+ F‑6
+
+Voice chat with push‑to‑talk and mute.
+
+ F‑7
+
+Spectator mode with free‑camera and commentary HUD.
+
+ F‑8
+
+In‑game tutorial and tactical puzzles.
+
+ F‑9
+
+Saved games and cloud sync via Meta Platform Services.
+
+ F‑10
+
+Cosmetic piece and board skins purchasable as DLC; no pay‑to‑win.
+
+6. Non‑Functional Requirements
+
+Performance: Maintain 90 FPS on Quest 3, 72 FPS on Quest 2.
+
+Comfort: Seated and standing modes, no artificial locomotion, minimal motion sickness risk.
+
+Accessibility: Color‑blind palettes, adjustable board scale, subtitles for chat.
+
+Security & Privacy: Meta entitlement checks, encrypted match data, COPPA compliance.
+
+7. UX / UI Requirements
+
+Layer toggle and slice view to examine board levels.
+
+Hand and controller support, option for hand tracking v2 at launch + haptics.
+
+Lobby UI with quick play, ranked, tutorial, and custom match tiles.
+
+Contextual audio cues for piece moves, check, and capture.
+
+Calm, sci‑fi aesthetic backdrop with focus on board legibility.
+
+8. Technical Architecture
+
+Engine: Unity 2023 LTS with Meta XR SDK.
+
+Networking: Photon Fusion (tick‑rate 30 Hz) or Meta’s RR2 transport if first‑party requirement emerges.
+
+AI: Stockfish‑derived engine extended to 5 × 5 × 5 bitboard logic; compute on device.
+
+Data: Matchmaking, ELO, cosmetics stored in Firebase.
+
+Build pipeline: GitHub Actions – CI, Quest Performance Tester, automated store builds.
+
+9. Monetization & Pricing
+
+Base price: USD 14.99 one‑time purchase.
+
+DLC: Cosmetic boards/pieces USD 2.99–4.99; season pass for themed sets every 6 months.
+
+No ads, no consumables.
+
+10. Launch & Milestones
+
+Phase
+
+Duration
+
+Key Deliverables
+
+Pre‑production
+
+1 mo
+
+Design docs, tech spike, art style guide
+
+Alpha
+
+3 mo
+
+Core gameplay, local AI, internal tests
+
+Beta Closed
+
+2 mo
+
+Online play, tutorial, performance optimization
+
+Beta Open
+
+1 mo
+
+Store page, community feedback, bug fixing
+
+Release
+
+0.5 mo
+
+Submission, marketing push
+
+Post‑launch
+
+Ongoing
+
+Balance patches, first cosmetic set
+
+11. Success Metrics (detailed)
+
+Daily Active Users (DAU), Weekly Multiplayer Games, Tutorial Completion Rate, Average Match Duration, User Rating, Paid DLC attach rate.
+
+12. Risks & Mitigations
+
+Rule complexity deters newcomers – mitigate with layered tutorials, assistive move previews.
+
+VR comfort issues – strictly stationary play space, customizable board distance.
+
+Server costs spike with success – auto‑scaling Photon tier and DLC revenue allocation.
+
+AI performance on mobile hardware – use compiled C++ engine and fallback heuristic layer.
+
+13. Future Enhancements
+
+Hand‑tracked piece manipulation.
+
+Cross‑play with PC VR and mixed‑reality tabletop mode.
+
+Tournament brackets and seasonal leaderboards.
+
+SDK plugin for custom piece sets by modders.
+
+Author: Product team draft – v0.9 (June 20 2025)
