@@ -49,64 +49,48 @@ export class InputHandler {
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
-    // First try to hit piece meshes
-    const pieceMeshes = this.pieceManager.getPieceMeshes();
-    const pieceHits = this.raycaster.intersectObjects(pieceMeshes);
-
-    // Also hit board squares
-    const squareMeshes = this.board.getSquareMeshes();
-    const squareHits = this.raycaster.intersectObjects(squareMeshes);
+    // Collect all hits — intersectObjects returns them sorted nearest→farthest.
+    // In cube view the ray passes through many overlapping cell meshes, so we must
+    // walk the full list to find the nearest *semantically relevant* cube rather
+    // than blindly taking hit[0] (which is always an outer surface).
+    const pieceHits  = this.raycaster.intersectObjects(this.pieceManager.getPieceMeshes());
+    const squareHits = this.raycaster.intersectObjects(this.board.getSquareMeshes());
 
     const gs = this.gameState;
 
+    const squarePos = hit => {
+      const sq = hit.object;
+      return { x: sq.userData.boardX, y: sq.userData.boardY, z: sq.userData.boardZ };
+    };
+    const isLegal = pos => gs.legalMoves.some(m => m.x === pos.x && m.y === pos.y && m.z === pos.z);
+    const isOwn   = pos => { const p = gs.get(pos.x, pos.y, pos.z); return p && p.color === gs.currentTurn; };
+
     if (gs.selectedPos) {
-      // Something is selected — try to move to target
-      let targetPos = null;
-
-      if (squareHits.length > 0) {
-        const sq = squareHits[0].object;
-        targetPos = { x: sq.userData.boardX, y: sq.userData.boardY, z: sq.userData.boardZ };
-      } else if (pieceHits.length > 0) {
-        const coords = this.pieceManager.getGroupCoords(pieceHits[0].object);
-        if (coords) targetPos = coords;
+      // Walk all square hits nearest→farthest; first relevant hit wins.
+      for (const hit of squareHits) {
+        const pos = squarePos(hit);
+        if (isLegal(pos)) { this._executeMove(gs.selectedPos, pos); return; }
+        if (isOwn(pos))   { this._selectPiece(pos); return; }
       }
-
-      if (targetPos) {
-        const isLegal = gs.legalMoves.some(m => m.x === targetPos.x && m.y === targetPos.y && m.z === targetPos.z);
-
-        if (isLegal) {
-          this._executeMove(gs.selectedPos, targetPos);
-          return;
-        }
-
-        // Clicked own piece — reselect
-        const clickedPiece = gs.get(targetPos.x, targetPos.y, targetPos.z);
-        if (clickedPiece && clickedPiece.color === gs.currentTurn) {
-          this._selectPiece(targetPos);
-          return;
-        }
-
-        // Clicked empty or enemy non-legal square — deselect
-        gs.selectedPos = null;
-        gs.legalMoves = [];
-        this.board.showHighlights(null, []);
-      }
-    } else {
-      // Nothing selected — try to select a piece
-      let targetPos = null;
-
+      // Fall back: check piece-mesh hits for reselection
       if (pieceHits.length > 0) {
-        targetPos = this.pieceManager.getGroupCoords(pieceHits[0].object);
-      } else if (squareHits.length > 0) {
-        const sq = squareHits[0].object;
-        targetPos = { x: sq.userData.boardX, y: sq.userData.boardY, z: sq.userData.boardZ };
+        const coords = this.pieceManager.getGroupCoords(pieceHits[0].object);
+        if (coords && isOwn(coords)) { this._selectPiece(coords); return; }
       }
-
-      if (targetPos) {
-        const piece = gs.get(targetPos.x, targetPos.y, targetPos.z);
-        if (piece && piece.color === gs.currentTurn) {
-          this._selectPiece(targetPos);
-        }
+      // Nothing relevant along the ray — deselect
+      gs.selectedPos = null;
+      gs.legalMoves  = [];
+      this.board.showHighlights(null, []);
+    } else {
+      // Walk all square hits nearest→farthest; select the first own piece found.
+      for (const hit of squareHits) {
+        const pos = squarePos(hit);
+        if (isOwn(pos)) { this._selectPiece(pos); return; }
+      }
+      // Fall back: check piece-mesh hits
+      if (pieceHits.length > 0) {
+        const coords = this.pieceManager.getGroupCoords(pieceHits[0].object);
+        if (coords && isOwn(coords)) this._selectPiece(coords);
       }
     }
   }
