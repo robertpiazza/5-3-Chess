@@ -38,6 +38,7 @@ body {
   font-weight: 700;
   letter-spacing: 2px;
   color: #a8d8ea;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5);
 }
 
 #turn-display {
@@ -89,29 +90,120 @@ body {
   cursor: not-allowed;
 }
 
-/* Legend */
-#legend {
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* "How pieces move" button in HUD */
+#moves-btn {
+  pointer-events: all;
+  background: none;
+  border: none;
+  color: #a8d8ea;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  text-align: left;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
 
-.legend-title {
+#moves-btn:hover {
+  opacity: 1;
+}
+
+/* "How pieces move" modal overlay */
+#moves-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#moves-modal.hidden {
+  display: none;
+}
+
+#moves-box {
+  background: #16213e;
+  border: 1px solid #2d6a9f;
+  border-radius: 14px;
+  padding: 36px 44px;
+  max-width: 580px;
+  width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+#moves-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #a8d8ea;
+}
+
+#moves-subtitle {
+  font-size: 13px;
+  color: #6699bb;
+  text-align: center;
+  margin-top: -6px;
+}
+
+#moves-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #dde;
+}
+
+#moves-table th {
+  text-align: left;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #888;
-  margin-bottom: 4px;
+  color: #6699bb;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-.legend-item {
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+#moves-table th:first-child {
+  width: 24px;
+}
+
+#moves-table td {
+  padding: 6px 8px 6px 0;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+#moves-table td:first-child {
+  width: 24px;
+  padding-right: 6px;
+}
+
+#moves-table td:nth-child(2) {
+  font-weight: 600;
+  white-space: nowrap;
+  padding-right: 16px;
+}
+
+#moves-box > button {
+  pointer-events: all;
+  background: #2d6a9f;
+  color: #fff;
+  border: none;
+  padding: 9px 28px;
+  border-radius: 7px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+
+#moves-box > button:hover {
+  background: #3a85c4;
 }
 
 .dot {
