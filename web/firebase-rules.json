@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "games": {
+      "$roomCode": {
+        "meta": {
+          ".read": true,
+          ".write": "!data.exists() || (data.child('guestJoined').val() === false && newData.child('guestJoined').val() === true)"
+        },
+        "moves": {
+          ".read": true,
+          "$moveId": {
+            ".write": "!data.exists()"
+          }
+        }
+      }
+    }
+  }
+}
