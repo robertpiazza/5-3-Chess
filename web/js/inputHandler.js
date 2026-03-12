@@ -3,13 +3,20 @@ import { COLOR, PIECE } from './gameState.js';
 import { getLegalMoves, isInCheck, hasAnyLegalMove } from './moveValidator.js';
 
 export class InputHandler {
-  constructor(camera, renderer, gameState, board, pieceManager, ui) {
-    this.camera = camera;
-    this.renderer = renderer;
-    this.gameState = gameState;
-    this.board = board;
-    this.pieceManager = pieceManager;
-    this.ui = ui;
+  /**
+   * @param {string|null}   localColor      COLOR.WHITE/BLACK in network play; null = local
+   * @param {Function|null} networkSendMove Called with (src, dst, promotionType) after a move
+   */
+  constructor(camera, renderer, gameState, board, pieceManager, ui,
+              localColor = null, networkSendMove = null) {
+    this.camera          = camera;
+    this.renderer        = renderer;
+    this.gameState       = gameState;
+    this.board           = board;
+    this.pieceManager    = pieceManager;
+    this.ui              = ui;
+    this.localColor      = localColor;
+    this.networkSendMove = networkSendMove;
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -32,6 +39,9 @@ export class InputHandler {
 
   _onClick(e) {
     if (this.gameState.status === 'checkmate' || this.gameState.status === 'stalemate') return;
+
+    // In network mode, block clicks when it's not this player's turn
+    if (this.localColor !== null && this.gameState.currentTurn !== this.localColor) return;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -133,6 +143,9 @@ export class InputHandler {
 
     // Clear highlights
     this.board.showHighlights(null, []);
+
+    // Send move to opponent over the network (no-op in local play)
+    if (this.networkSendMove) this.networkSendMove(src, dst, promotionType);
 
     // Evaluate new position
     this._updateGameStatus();

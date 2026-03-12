@@ -1,108 +1,139 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PIECE, COLOR } from './gameState.js';
 
-// Piece body/accent materials
-const BODY_MAT = {
-  [COLOR.WHITE]: new THREE.MeshLambertMaterial({ color: 0xf0e6d3 }),
-  [COLOR.BLACK]: new THREE.MeshLambertMaterial({ color: 0x2c2c3a }),
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const BODY_COLOR = {
+  [COLOR.WHITE]: 0xfaf4e8,   // brighter ivory
+  [COLOR.BLACK]: 0x1a1a28,   // darker ebony
 };
 
-const ACCENT_COLOR = {
-  [PIECE.ROOK]:    0xe07b39,
-  [PIECE.BISHOP]:  0x9b59b6,
-  [PIECE.KNIGHT]:  0x27ae60,
-  [PIECE.QUEEN]:   0xf1c40f,
-  [PIECE.KING]:    0xe74c3c,
-  [PIECE.UNICORN]: 0x1abc9c,
-  [PIECE.PAWN]:    0x95a5a6,
+// Phong material parameters per team — strong specular makes 3D shape visible
+const BODY_MAT_PARAMS = {
+  [COLOR.WHITE]: { specular: 0xffffff, shininess: 100 },
+  [COLOR.BLACK]: { specular: 0xaaaaaa, shininess: 70 },
 };
 
-function makeBody(pieceType, color) {
-  const group = new THREE.Group();
-  const bodyMat   = BODY_MAT[color].clone();
-  const accentMat = new THREE.MeshLambertMaterial({ color: ACCENT_COLOR[pieceType] });
+const UNICORN_HORN_COLOR = 0x1abc9c;
 
-  let base, top;
+// All models are normalised to this height (world units) after loading
+const TARGET_HEIGHT = 0.75;
 
-  switch (pieceType) {
-    case PIECE.PAWN: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.28, 12), bodyMat);
-      base.position.y = 0.14;
-      top = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), accentMat);
-      top.position.y = 0.44;
-      break;
-    }
-    case PIECE.ROOK: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.38, 12), bodyMat);
-      base.position.y = 0.19;
-      top = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.28), accentMat);
-      top.position.y = 0.49;
-      break;
-    }
-    case PIECE.KNIGHT: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.36, 12), bodyMat);
-      base.position.y = 0.18;
-      top = new THREE.Mesh(new THREE.TetrahedronGeometry(0.18), accentMat);
-      top.position.y = 0.52;
-      break;
-    }
-    case PIECE.BISHOP: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 0.4, 12), bodyMat);
-      base.position.y = 0.20;
-      top = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.28, 12), accentMat);
-      top.position.y = 0.58;
-      break;
-    }
-    case PIECE.UNICORN: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.26, 0.38, 12), bodyMat);
-      base.position.y = 0.19;
-      top = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.38, 8), accentMat);
-      top.position.y = 0.66;
-      break;
-    }
-    case PIECE.QUEEN: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 0.44, 12), bodyMat);
-      base.position.y = 0.22;
-      top = new THREE.Mesh(new THREE.OctahedronGeometry(0.18), accentMat);
-      top.position.y = 0.62;
-      break;
-    }
-    case PIECE.KING: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 0.44, 12), bodyMat);
-      base.position.y = 0.22;
-      const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.11, 0.11), accentMat);
-      crossH.position.y = 0.65;
-      const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.34, 0.11), accentMat);
-      crossV.position.y = 0.65;
-      group.add(crossH, crossV);
-      top = null;
-      break;
-    }
-    default: {
-      base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.35, 12), bodyMat);
-      base.position.y = 0.175;
-      top = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), accentMat);
-      top.position.y = 0.44;
-    }
+// ── Model cache ───────────────────────────────────────────────────────────────
+
+// Loaded + pivot-normalised template Groups, keyed by file name
+const _templates = {};
+
+// Piece type → GLB file name ('knight' is reused as the unicorn base)
+const PIECE_FILE = {
+  [PIECE.KING]:    'king',
+  [PIECE.QUEEN]:   'queen',
+  [PIECE.ROOK]:    'rook',
+  [PIECE.BISHOP]:  'bishop',
+  [PIECE.KNIGHT]:  'knight',
+  [PIECE.UNICORN]: 'knight',
+  [PIECE.PAWN]:    'pawn',
+};
+
+// ── Public: preload all GLB files ─────────────────────────────────────────────
+
+export async function loadAllModels() {
+  const loader = new GLTFLoader();
+  const fileNames = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+
+  await Promise.all(fileNames.map(name =>
+    new Promise((resolve, reject) => {
+      loader.load(
+        `./models/${name}.glb`,
+        gltf => { _templates[name] = _normalize(gltf.scene); resolve(); },
+        undefined,
+        err  => { console.error(`Failed to load ${name}.glb`, err); reject(err); }
+      );
+    })
+  ));
+}
+
+// ── Internal: normalise a raw GLTF scene to a standard height & pivot ────────
+
+function _normalize(scene) {
+  // 1. Uniform scale so the model's Y-extent equals TARGET_HEIGHT
+  const box1 = new THREE.Box3().setFromObject(scene);
+  const height = box1.getSize(new THREE.Vector3()).y;
+  scene.scale.setScalar(TARGET_HEIGHT / height);
+
+  // 2. Re-measure after scaling
+  scene.updateMatrixWorld(true);
+  const box2 = new THREE.Box3().setFromObject(scene);
+  const center = box2.getCenter(new THREE.Vector3());
+
+  // 3. Wrap in a Group whose local origin is at the base-center of the model.
+  //    This makes positioning trivial: group.position = board cell position.
+  const wrapper = new THREE.Group();
+  scene.position.set(-center.x, -box2.min.y, -center.z);
+  wrapper.add(scene);
+  return wrapper;
+}
+
+// ── Internal: build a coloured piece Group from the cached template ───────────
+
+function _makeBody(pieceType, color) {
+  const template = _templates[PIECE_FILE[pieceType]];
+  if (!template) {
+    console.warn(`Model template not loaded for piece type: ${pieceType}`);
+    return new THREE.Group();
   }
 
-  group.add(base);
-  if (top) group.add(top);
+  // Deep-clone so each piece instance is independent
+  const group = template.clone(true);
+
+  // Replace all mesh materials with Phong (specular highlights = visible 3D shape)
+  const { specular, shininess } = BODY_MAT_PARAMS[color];
+  group.traverse(child => {
+    if (child.isMesh) {
+      // Ensure smooth normals exist — some GLB exports lack them
+      if (child.geometry && !child.geometry.getAttribute('normal')) {
+        child.geometry.computeVertexNormals();
+      }
+      child.material = new THREE.MeshPhongMaterial({
+        color: BODY_COLOR[color],
+        specular,
+        shininess,
+      });
+    }
+  });
+
+  // Knights and Unicorns face their opponent:
+  //   White (+90° Y = CCW from above), Black (−90° Y = CW from above)
+  if (pieceType === PIECE.KNIGHT || pieceType === PIECE.UNICORN) {
+    group.rotation.y = color === COLOR.WHITE ? Math.PI / 2 : -Math.PI / 2;
+  }
+
+  // Unicorn: graft a teal horn onto the knight's head
+  if (pieceType === PIECE.UNICORN) {
+    const hornMat = new THREE.MeshPhongMaterial({ color: UNICORN_HORN_COLOR, specular: 0x999999, shininess: 90 });
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.21, 8), hornMat);
+    // Position tuned via test-orientation.html
+    horn.position.set(-0.06, 0.69, 0.00);
+    horn.rotation.set(0.00, 0.00, 0.80);
+    group.add(horn);
+  }
+
   return group;
 }
 
+// ── PieceManager ──────────────────────────────────────────────────────────────
+
 export class PieceManager {
-  // board is required so piece positions stay in sync with the current view mode
   constructor(scene, gameState, board) {
     this.scene     = scene;
     this.gameState = gameState;
     this.board     = board;
-    this.meshMap   = new Map(); // key `${x},${y},${z}` → THREE.Group
+    this.meshMap   = new Map(); // `${x},${y},${z}` → THREE.Group
   }
 
   key(x, y, z) { return `${x},${y},${z}`; }
 
-  // Build meshes from the current board state (clears old meshes first)
   syncFromState() {
     for (const mesh of this.meshMap.values()) this.scene.remove(mesh);
     this.meshMap.clear();
@@ -116,7 +147,7 @@ export class PieceManager {
   }
 
   _spawnMesh(x, y, z, cell) {
-    const group = makeBody(cell.type, cell.color);
+    const group = _makeBody(cell.type, cell.color);
     group.position.copy(this.board.cellPosition(x, y, z));
     group.scale.setScalar(this.board.pieceScale);
     group.userData = { boardX: x, boardY: y, boardZ: z, isPiece: true, pieceColor: cell.color };
@@ -124,7 +155,6 @@ export class PieceManager {
     this.meshMap.set(this.key(x, y, z), group);
   }
 
-  // Move mesh from src to dst, removing any captured piece mesh
   moveMesh(src, dst) {
     const srcKey = this.key(src.x, src.y, src.z);
     const dstKey = this.key(dst.x, dst.y, dst.z);
@@ -141,12 +171,10 @@ export class PieceManager {
     mesh.userData.boardX = dst.x;
     mesh.userData.boardY = dst.y;
     mesh.userData.boardZ = dst.z;
-
     this.meshMap.delete(srcKey);
     this.meshMap.set(dstKey, mesh);
   }
 
-  // Rebuild a single cell's mesh (used after pawn promotion)
   refreshCell(x, y, z) {
     const k = this.key(x, y, z);
     if (this.meshMap.has(k)) {
@@ -157,7 +185,6 @@ export class PieceManager {
     if (cell) this._spawnMesh(x, y, z, cell);
   }
 
-  // All child Mesh objects across all piece groups (for raycasting)
   getPieceMeshes() {
     const result = [];
     for (const group of this.meshMap.values())
@@ -165,7 +192,6 @@ export class PieceManager {
     return result;
   }
 
-  // Walk up from a raycasted child mesh to find board coords on the parent group
   getGroupCoords(mesh) {
     let obj = mesh;
     while (obj && !obj.userData.isPiece) obj = obj.parent;
