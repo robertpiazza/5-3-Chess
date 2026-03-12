@@ -15,16 +15,9 @@
     <div id="status-display"></div>
     <button id="new-game-btn" disabled>New Game</button>
     <button id="view-toggle-btn" disabled>Cube View</button>
-    <div id="legend">
-      <div class="legend-title">Pieces</div>
-      <div class="legend-item"><span class="dot rook"></span> Rook</div>
-      <div class="legend-item"><span class="dot bishop"></span> Bishop</div>
-      <div class="legend-item"><span class="dot knight"></span> Knight</div>
-      <div class="legend-item"><span class="dot queen"></span> Queen</div>
-      <div class="legend-item"><span class="dot king"></span> King</div>
-      <div class="legend-item"><span class="dot unicorn"></span> Unicorn</div>
-      <div class="legend-item"><span class="dot pawn"></span> Pawn</div>
-    </div>
+    <button id="moves-btn" onclick="document.getElementById('moves-modal').classList.remove('hidden')">
+      ? How pieces move
+    </button>
     <div id="controls-hint">
       Drag to orbit &nbsp;|&nbsp; Scroll to zoom
     </div>
@@ -64,6 +57,57 @@
         <button class="btn-back" id="btn-back-join">← Back</button>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ── Piece moves reference modal ─────────────────────────────────────── -->
+  <div id="moves-modal" class="hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div id="moves-box">
+      <div id="moves-title">How Pieces Move</div>
+      <div id="moves-subtitle">5³ Chess is played on a 5×5×5 board — pieces move in full 3D space.</div>
+      <table id="moves-table">
+        <thead>
+          <tr><th></th><th>Piece</th><th>Movement</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="dot rook"></span></td>
+            <td>Rook</td>
+            <td>Slides any distance along one axis — X, Y, or Z (6 directions)</td>
+          </tr>
+          <tr>
+            <td><span class="dot bishop"></span></td>
+            <td>Bishop</td>
+            <td>Slides along face diagonals — exactly 2 axes change together (12 directions)</td>
+          </tr>
+          <tr>
+            <td><span class="dot unicorn"></span></td>
+            <td>Unicorn</td>
+            <td>Slides along space diagonals — all 3 axes change together (8 directions)</td>
+          </tr>
+          <tr>
+            <td><span class="dot queen"></span></td>
+            <td>Queen</td>
+            <td>Combines Rook + Bishop + Unicorn — slides in all 26 directions</td>
+          </tr>
+          <tr>
+            <td><span class="dot king"></span></td>
+            <td>King</td>
+            <td>One step in any of the 26 directions — must stay out of check</td>
+          </tr>
+          <tr>
+            <td><span class="dot knight"></span></td>
+            <td>Knight</td>
+            <td>L-shape in 3D: 2 squares on one axis + 1 on another; jumps over pieces (up to 24 moves)</td>
+          </tr>
+          <tr>
+            <td><span class="dot pawn"></span></td>
+            <td>Pawn</td>
+            <td>Advances one layer forward (White: +Z, Black: −Z); captures one step diagonally forward; promotes on the far layer</td>
+          </tr>
+        </tbody>
+      </table>
+      <button onclick="document.getElementById('moves-modal').classList.add('hidden')">Close</button>
     </div>
   </div>
 
