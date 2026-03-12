@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5³ Chess — Raumschach</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="hud">
+    <div id="title">5³ Chess</div>
+    <div id="turn-display">White's Turn</div>
+    <div id="status-display"></div>
+    <button id="new-game-btn" disabled>New Game</button>
+    <button id="view-toggle-btn" disabled>Cube View</button>
+    <div id="legend">
+      <div class="legend-title">Pieces</div>
+      <div class="legend-item"><span class="dot rook"></span> Rook</div>
+      <div class="legend-item"><span class="dot bishop"></span> Bishop</div>
+      <div class="legend-item"><span class="dot knight"></span> Knight</div>
+      <div class="legend-item"><span class="dot queen"></span> Queen</div>
+      <div class="legend-item"><span class="dot king"></span> King</div>
+      <div class="legend-item"><span class="dot unicorn"></span> Unicorn</div>
+      <div class="legend-item"><span class="dot pawn"></span> Pawn</div>
+    </div>
+    <div id="controls-hint">
+      Drag to orbit &nbsp;|&nbsp; Scroll to zoom
+    </div>
+  </div>
+
+  <div id="game-over-overlay" class="hidden">
+    <div id="game-over-box">
+      <div id="game-over-title">Game Over</div>
+      <div id="game-over-result"></div>
+      <button id="play-again-btn">Play Again</button>
+    </div>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

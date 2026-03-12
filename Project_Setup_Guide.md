@@ -19,7 +19,7 @@
 ### 1. Create New Unity Project
 1. Open Unity Hub
 2. Click "New Project"
-3. Select "3D (URP)" template
+3. Select "Universal 3D (SRP)" template
 4. Set project name: "DimensionChessVR"
 5. Choose location: `D:\GitHub\5^3 Chess\UnityProject`
 6. Click "Create project"
@@ -47,9 +47,12 @@
 
 #### Quality Settings
 1. Go to `Edit > Project Settings > Quality`
-2. Set all quality levels to prioritize performance
-3. Disable anti-aliasing for mobile
-4. Set texture quality to "Full Res"
+2. For each quality level, set:
+   - **Texture Quality**: Full Res
+   - **Anisotropic Textures**: Per Texture
+   - **Anti Aliasing**: Disabled
+   - **Soft Particles**: Disabled
+   - **Realtime Reflection Probes**: Disabled
 
 ### 3. Install Required Packages
 
