@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Layer-view constants (exported for any consumers that still need them)
 export const SQUARE_SIZE = 1.0;
-export const LAYER_GAP = 2.2;
+export const LAYER_GAP = 1.65;
 export const BOARD_OFFSET = -2;
 
 // Cube-view constants
