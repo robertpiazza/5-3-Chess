@@ -130,10 +130,10 @@ function minimax(board, depth, color, alpha, beta, aiColor) {
  *
  * @param {Array}  boardArr - current 3-D board (not mutated)
  * @param {string} aiColor  - COLOR.WHITE or COLOR.BLACK
- * @param {number} depth    - search depth (default 2)
+ * @param {number} depth    - search depth (default 3)
  * @returns {{ src:{x,y,z}, dst:{x,y,z} } | null}
  */
-export function findBestMove(boardArr, aiColor, depth = 2) {
+export function findBestMove(boardArr, aiColor, depth = 3) {
   const oppColor = aiColor === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE;
   const moves    = getAllMoves(boardArr, aiColor);
   if (moves.length === 0) return null;

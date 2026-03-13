@@ -9,12 +9,13 @@ export const BOARD_OFFSET = -2;
 const CUBE_SPACING = 1.2; // center-to-center distance between small cubes
 const CUBE_SIZE    = 1.0; // visual edge length of each small cube
 
-const COLOR_LIGHT     = new THREE.Color(0xd4b896);
-const COLOR_DARK      = new THREE.Color(0x7a5c3a);
-const COLOR_HIGHLIGHT = new THREE.Color(0x44dd88);
-const COLOR_SELECTED  = new THREE.Color(0xffcc00);
-const COLOR_HINT_SRC  = new THREE.Color(0x00ccff);  // cyan  — piece to move
-const COLOR_HINT_DST  = new THREE.Color(0xff8800);  // orange — destination
+const COLOR_LIGHT      = new THREE.Color(0xd4b896);
+const COLOR_DARK       = new THREE.Color(0x7a5c3a);
+const COLOR_HIGHLIGHT  = new THREE.Color(0x44dd88);
+const COLOR_SELECTED   = new THREE.Color(0xffcc00);
+const COLOR_HINT_SRC   = new THREE.Color(0x00ccff);  // cyan  — piece to move
+const COLOR_HINT_DST   = new THREE.Color(0xff8800);  // orange — destination
+const COLOR_LAST_MOVE  = new THREE.Color(0xc8a820);  // amber — last move src/dst
 
 export class Board {
   constructor(scene) {
@@ -23,8 +24,11 @@ export class Board {
     this._ownedObjects = [];  // everything added to scene by the board
     this.squareMeshes = [];   // layers mode: [z][x][y]
     this.cubeMeshes   = [];   // cube mode: flat array
-    this.highlightMeshes = [];
-    this.hintMeshes = [];
+    this.highlightMeshes  = [];
+    this.hintMeshes       = [];
+    this.lastMoveMeshes   = [];
+    this._lastMoveSrc     = null;
+    this._lastMoveDst     = null;
     this._buildLayers();
   }
 
@@ -38,6 +42,10 @@ export class Board {
     else this._buildCube();
     this.clearHighlights();
     this.clearHintHighlight();
+    // Rebuild last-move indicator in the new view style
+    const s = this._lastMoveSrc, d = this._lastMoveDst;
+    this.lastMoveMeshes = [];
+    if (s && d) this.showLastMove(s, d);
   }
 
   // Scale factor pieces should use in the current view
@@ -70,6 +78,26 @@ export class Board {
   clearHintHighlight() {
     for (const m of this.hintMeshes) this.scene.remove(m);
     this.hintMeshes = [];
+  }
+
+  /** Highlight the two squares involved in the last move (amber tint). */
+  showLastMove(src, dst) {
+    for (const m of this.lastMoveMeshes) this.scene.remove(m);
+    this.lastMoveMeshes  = [];
+    this._lastMoveSrc    = src;
+    this._lastMoveDst    = dst;
+    if (!src || !dst) return;
+    if (this.viewMode === 'layers') {
+      this._addLastMovePlane(src);
+      this._addLastMovePlane(dst);
+    } else {
+      this._addLastMoveBox(src);
+      this._addLastMoveBox(dst);
+    }
+  }
+
+  clearLastMove() {
+    this.showLastMove(null, null);
   }
 
   /** Show a hint move (cyan = piece to move, orange = destination). */
@@ -198,6 +226,30 @@ export class Board {
     box.position.copy(this._cubeCenter(pos.x, pos.y, pos.z));
     this.scene.add(box);
     this.hintMeshes.push(box);
+  }
+
+  _addLastMovePlane(pos) {
+    const geo = new THREE.PlaneGeometry(SQUARE_SIZE * 0.94, SQUARE_SIZE * 0.94);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: COLOR_LAST_MOVE, transparent: true, opacity: 0.40, side: THREE.DoubleSide,
+    });
+    const plane = new THREE.Mesh(geo, mat);
+    const p = this.cellPosition(pos.x, pos.y, pos.z);
+    plane.position.copy(p).setY(p.y + 0.005);
+    this.scene.add(plane);
+    this.lastMoveMeshes.push(plane);
+  }
+
+  _addLastMoveBox(pos) {
+    const hl  = CUBE_SIZE * 1.08;
+    const box = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(hl, hl, hl)),
+      new THREE.LineBasicMaterial({ color: COLOR_LAST_MOVE, linewidth: 2 }),
+    );
+    box.position.copy(this._cubeCenter(pos.x, pos.y, pos.z));
+    this.scene.add(box);
+    this.lastMoveMeshes.push(box);
   }
 
   _showHighlightsLayers(selectedPos, legalMoves) {

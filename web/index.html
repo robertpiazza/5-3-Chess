@@ -143,12 +143,26 @@
     </div>
   </div>
 
+  <!-- ── Pawn promotion overlay ──────────────────────────────────────────── -->
+  <div id="promotion-overlay" class="hidden">
+    <div id="promotion-box">
+      <div class="lobby-title">Pawn Promotion</div>
+      <div class="lobby-label">Choose a piece:</div>
+      <button data-piece="Q">♛ Queen</button>
+      <button data-piece="R">♜ Rook</button>
+      <button data-piece="B">♝ Bishop</button>
+      <button data-piece="N">♞ Knight</button>
+      <button data-piece="U">🦄 Unicorn</button>
+    </div>
+  </div>
+
   <!-- ── Game-over overlay ─────────────────────────────────────────────────── -->
-  <div id="game-over-overlay" class="hidden">
+  <div id="game-over-overlay" class="hidden" onclick="if(event.target===this)this.classList.add('hidden')">
     <div id="game-over-box">
       <div id="game-over-title">Game Over</div>
       <div id="game-over-result"></div>
       <button id="play-again-btn">Play Again</button>
+      <button id="review-board-btn">Review Board</button>
     </div>
   </div>
 

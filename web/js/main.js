@@ -132,7 +132,8 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
 
   _undoPending = false;
 
-  // Reset hint state for the new game
+  // Reset hint and last-move state for the new game
+  board.clearLastMove();
   board.clearHintHighlight();
   _hintBtn.disabled = false;
   _hintBtn.classList.remove('thinking');
@@ -165,6 +166,7 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
 function undoLastMove() {
   if (!gameState.undoMove()) return;
   board.showHighlights(null, []);
+  board.clearLastMove();
   board.clearHintHighlight();
   pieceManager.syncFromState();
   ui.hideGameOver();
@@ -228,6 +230,7 @@ async function applyNetworkMove(src, dst, promotionType) {
   if (promotionType) pieceManager.refreshCell(dst.x, dst.y, dst.z);
 
   board.showHighlights(null, []);
+  board.showLastMove(src, dst);
   board.clearHintHighlight();
 
   // Evaluate the new position (same logic as InputHandler._updateGameStatus)
@@ -262,6 +265,7 @@ async function applyAiMove(src, dst) {
   if (promotionType) pieceManager.refreshCell(dst.x, dst.y, dst.z);
 
   board.showHighlights(null, []);
+  board.showLastMove(src, dst);
 
   const color   = gameState.currentTurn;
   const inCheck = isInCheck(gameState.board, color);

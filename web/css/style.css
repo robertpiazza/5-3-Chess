@@ -454,6 +454,34 @@ body {
   display: none;
 }
 
+/* ── Pawn promotion overlay ─────────────────────────────────────────────── */
+
+#promotion-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#promotion-overlay.hidden {
+  display: none;
+}
+
+#promotion-box {
+  background: #16213e;
+  border: 1px solid #2d6a9f;
+  border-radius: 12px;
+  padding: 32px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
 /* Game over overlay */
 #game-over-overlay {
   position: fixed;
@@ -489,6 +517,20 @@ body {
 
 #game-over-result {
   font-size: 18px;
+  color: #e0e0e0;
+}
+
+#review-board-btn {
+  background: transparent;
+  border: 1px solid #4a6fa5;
+  color: #a8c0d8;
+  font-size: 13px;
+  padding: 6px 18px;
+  margin-top: -6px;
+}
+
+#review-board-btn:hover {
+  background: rgba(74, 111, 165, 0.2);
   color: #e0e0e0;
 }
 

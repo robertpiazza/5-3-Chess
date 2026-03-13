@@ -18,7 +18,8 @@ export class UI {
     newGameBtn.onclick  = onNewGame;
     newGameBtn.disabled = false;
 
-    document.getElementById('play-again-btn').onclick = onNewGame;
+    document.getElementById('play-again-btn').onclick  = onNewGame;
+    document.getElementById('review-board-btn').onclick = () => this.hideGameOver();
 
     this.viewBtn.onclick  = onToggleView;
     this.viewBtn.disabled = false;
@@ -50,6 +51,18 @@ export class UI {
     } else {
       this.resultText.textContent = 'Draw by stalemate.';
     }
+  }
+
+  /** Show the pawn-promotion picker; calls callback(pieceType) on selection. */
+  showPromotionPicker(callback) {
+    const overlay = document.getElementById('promotion-overlay');
+    overlay.classList.remove('hidden');
+    overlay.querySelectorAll('[data-piece]').forEach(btn => {
+      btn.onclick = () => {
+        overlay.classList.add('hidden');
+        callback(btn.dataset.piece);
+      };
+    });
   }
 
   hideGameOver() {

@@ -22,8 +22,9 @@ export class InputHandler {
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
-    this._isDragging = false;
+    this._isDragging   = false;
     this._mouseDownPos = { x: 0, y: 0 };
+    this._isPromoting  = false;
 
     renderer.domElement.addEventListener('pointerdown', e => {
       this._isDragging = false;
@@ -44,6 +45,7 @@ export class InputHandler {
 
     // Block clicks while a piece animation is in progress
     if (this.pieceManager.isAnimating) return;
+    if (this._isPromoting) return;
 
     // In network mode, block clicks when it's not this player's turn
     if (this.localColor !== null && this.gameState.currentTurn !== this.localColor) return;
@@ -112,17 +114,23 @@ export class InputHandler {
     const gs = this.gameState;
     const piece = gs.get(src.x, src.y, src.z);
 
-    // Check for pawn promotion before animating (prompt is blocking)
-    let promotionType = null;
+    // Detect promotion before animating (piece may disappear from src mid-flight)
+    let isPromotion = false;
     if (piece.type === PIECE.PAWN) {
       const promoteZ = piece.color === COLOR.WHITE ? 4 : 0;
-      if (dst.z === promoteZ) {
-        promotionType = this._askPromotion();
-      }
+      if (dst.z === promoteZ) isPromotion = true;
     }
 
     // Animate the 3D mesh — await so game state updates after the piece lands
     await this.pieceManager.moveMesh(src, dst);
+
+    // Show promotion picker after the piece lands
+    let promotionType = null;
+    if (isPromotion) {
+      this._isPromoting = true;
+      promotionType = await this._askPromotion();
+      this._isPromoting = false;
+    }
 
     // Update game state
     gs.executeMove(src, dst, promotionType);
@@ -130,8 +138,9 @@ export class InputHandler {
     // Refresh promoted piece mesh if needed
     if (promotionType) this.pieceManager.refreshCell(dst.x, dst.y, dst.z);
 
-    // Clear highlights
+    // Clear selection highlights and mark this move on the board
     this.board.showHighlights(null, []);
+    this.board.showLastMove(src, dst);
 
     // Send move to opponent over the network / trigger AI
     if (this.networkSendMove) this.networkSendMove(src, dst, promotionType);
@@ -144,14 +153,9 @@ export class InputHandler {
   }
 
   _askPromotion() {
-    const choices = ['Queen', 'Rook', 'Bishop', 'Knight', 'Unicorn'];
-    const answer = window.prompt(
-      `Pawn promotion! Choose piece:\n${choices.map((c, i) => `${i + 1}. ${c}`).join('\n')}`,
-      '1'
-    );
-    const idx = parseInt(answer, 10) - 1;
-    const map = { Queen: PIECE.QUEEN, Rook: PIECE.ROOK, Bishop: PIECE.BISHOP, Knight: PIECE.KNIGHT, Unicorn: PIECE.UNICORN };
-    return map[choices[idx]] || PIECE.QUEEN;
+    return new Promise(resolve => {
+      this.ui.showPromotionPicker(resolve);
+    });
   }
 
   _updateGameStatus() {
