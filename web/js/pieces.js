@@ -17,8 +17,23 @@ const BODY_MAT_PARAMS = {
 
 const UNICORN_HORN_COLOR = 0x1abc9c;
 
-// All models are normalised to this height (world units) after loading
-const TARGET_HEIGHT = 0.75;
+// King height in world units — all other pieces scale proportionally
+const TARGET_HEIGHT = 0.75;   // king = 9.5 cm → 0.75 world units
+
+// Standard piece heights in cm (real-world proportions)
+const PIECE_HEIGHT_CM = {
+  king:   9.5,
+  queen:  8.5,
+  bishop: 7.0,
+  knight: 6.0,   // unicorn body matches this
+  rook:   5.5,
+  pawn:   5.0,
+};
+
+// Convert to world units (king anchors the scale)
+const PIECE_TARGET_HEIGHT = Object.fromEntries(
+  Object.entries(PIECE_HEIGHT_CM).map(([k, cm]) => [k, TARGET_HEIGHT * cm / 9.5])
+);
 
 // ── Model cache ───────────────────────────────────────────────────────────────
 
@@ -46,7 +61,7 @@ export async function loadAllModels() {
     new Promise((resolve, reject) => {
       loader.load(
         `./models/${name}.glb`,
-        gltf => { _templates[name] = _normalize(gltf.scene); resolve(); },
+        gltf => { _templates[name] = _normalize(gltf.scene, PIECE_TARGET_HEIGHT[name]); resolve(); },
         undefined,
         err  => { console.error(`Failed to load ${name}.glb`, err); reject(err); }
       );
@@ -56,11 +71,11 @@ export async function loadAllModels() {
 
 // ── Internal: normalise a raw GLTF scene to a standard height & pivot ────────
 
-function _normalize(scene) {
-  // 1. Uniform scale so the model's Y-extent equals TARGET_HEIGHT
+function _normalize(scene, targetHeight) {
+  // 1. Uniform scale so the model's Y-extent equals targetHeight
   const box1 = new THREE.Box3().setFromObject(scene);
   const height = box1.getSize(new THREE.Vector3()).y;
-  scene.scale.setScalar(TARGET_HEIGHT / height);
+  scene.scale.setScalar(targetHeight / height);
 
   // 2. Re-measure after scaling
   scene.updateMatrixWorld(true);
@@ -111,10 +126,16 @@ function _makeBody(pieceType, color) {
 
   // Unicorn: graft a teal horn onto the knight's head
   if (pieceType === PIECE.UNICORN) {
+    // The unicorn body uses the knight model scaled to knight height (6.0 cm).
+    // Horn geometry/position were originally tuned at TARGET_HEIGHT (9.5 cm scale).
+    // Scale them down by the same ratio so they stay proportional.
+    const hornScale = PIECE_HEIGHT_CM.knight / 9.5;  // 6.0 / 9.5
     const hornMat = new THREE.MeshPhongMaterial({ color: UNICORN_HORN_COLOR, specular: 0x999999, shininess: 90 });
-    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.21, 8), hornMat);
-    // Position tuned via test-orientation.html
-    horn.position.set(-0.06, 0.69, 0.00);
+    const horn = new THREE.Mesh(
+      new THREE.ConeGeometry(0.05 * hornScale, 0.21 * hornScale, 8),
+      hornMat
+    );
+    horn.position.set(-0.06 * hornScale, 0.69 * hornScale, 0.00);
     horn.rotation.set(0.00, 0.00, 0.80);
     group.add(horn);
   }
