@@ -216,10 +216,14 @@ export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
   const defSim = base.map(p => p.map(r => [...r]));
   defSim[tx][ty][tz] = { ...base[tx][ty][tz], color: opponentColor };
 
-  // Collect piece values for each side, sorted cheapest-first so we always
-  // simulate the most natural (lowest-risk) recapture first.
+  // Collect piece values for each side, sorted cheapest-first.
+  // Kings are tracked separately: they may only participate as the very last
+  // recapturer — capturing with a king onto a square still covered by an
+  // opponent piece is illegal (moving into check).
   const attackerVals = [];
   const defenderVals = [];
+  let attackerKing = false;
+  let defenderKing = false;
 
   for (let x = 0; x < 5; x++)
     for (let y = 0; y < 5; y++)
@@ -227,27 +231,27 @@ export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
         if (x === tx && y === ty && z === tz) continue;
         const piece = base[x][y][z];
         if (!piece) continue;
-        const val = PIECE_VALUES[piece.type] ?? 0;
 
         if (piece.color === opponentColor) {
-          if (pseudoLegalMoves(base, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz))
-            attackerVals.push(val);
+          if (!pseudoLegalMoves(base, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz)) continue;
+          if (piece.type === PIECE.KING) attackerKing = true;
+          else attackerVals.push(PIECE_VALUES[piece.type] ?? 0);
         } else {
-          if (pseudoLegalMoves(defSim, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz))
-            defenderVals.push(val);
+          if (!pseudoLegalMoves(defSim, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz)) continue;
+          if (piece.type === PIECE.KING) defenderKing = true;
+          else defenderVals.push(PIECE_VALUES[piece.type] ?? 0);
         }
       }
 
   attackerVals.sort((a, b) => a - b);
   defenderVals.sort((a, b) => a - b);
 
-  // Simulate alternating captures. onSquareValue tracks the piece currently
-  // sitting on the target (and thus at risk on the next capture).
+  // Simulate alternating captures. onSquareValue = value of the piece currently
+  // on the target square (at risk from the next capture).
   const movingPiece = boardArr[selectedPos.x][selectedPos.y][selectedPos.z];
   let onSquareValue = PIECE_VALUES[movingPiece.type] ?? 0;
 
-  // If the move is a capture, seed greenScore with the captured piece's value
-  // (that gain is immediate and unconditional regardless of what follows).
+  // If the initial move is a capture, that gain is unconditional.
   const capturedPiece = boardArr[tx][ty][tz];
   let greenScore = (capturedPiece && capturedPiece.color === opponentColor)
     ? (PIECE_VALUES[capturedPiece.type] ?? 0)
@@ -255,14 +259,35 @@ export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
   let redScore = 0;
   let ai = 0, di = 0;
 
-  while (ai < attackerVals.length) {
-    redScore     += onSquareValue;       // opponent captures our piece on the square
-    onSquareValue = attackerVals[ai++];  // their piece is now on the square
+  while (true) {
+    // ── Attacker's turn ──────────────────────────────────────────────────────
+    if (ai < attackerVals.length) {
+      redScore += onSquareValue;
+      onSquareValue = attackerVals[ai++];
+    } else if (attackerKing) {
+      // King may only capture if the defender has no pieces left to recapture
+      // (otherwise the king would be moving into check).
+      if (di < defenderVals.length || defenderKing) break;
+      redScore += onSquareValue;
+      onSquareValue = PIECE_VALUES[PIECE.KING];
+      attackerKing = false;
+    } else {
+      break;
+    }
 
-    if (di >= defenderVals.length) break; // no defender left to recapture
-
-    greenScore   += onSquareValue;       // we recapture their piece
-    onSquareValue = defenderVals[di++];  // our next piece is now on the square
+    // ── Defender's turn ──────────────────────────────────────────────────────
+    if (di < defenderVals.length) {
+      greenScore += onSquareValue;
+      onSquareValue = defenderVals[di++];
+    } else if (defenderKing) {
+      // Same rule: king may only recapture if the attacker has no pieces left.
+      if (ai < attackerVals.length || attackerKing) break;
+      greenScore += onSquareValue;
+      onSquareValue = PIECE_VALUES[PIECE.KING];
+      defenderKing = false;
+    } else {
+      break;
+    }
   }
 
   return { greenScore, redScore };
