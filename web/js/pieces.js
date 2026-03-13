@@ -18,7 +18,7 @@ const BODY_MAT_PARAMS = {
 const UNICORN_HORN_COLOR = 0x1abc9c;
 
 // King height in world units — all other pieces scale proportionally
-const TARGET_HEIGHT = 0.75;   // king = 9.5 cm → 0.75 world units
+const TARGET_HEIGHT = 1.50;   // king = 9.5 cm → 1.50 world units
 
 // Standard piece heights in cm (real-world proportions)
 const PIECE_HEIGHT_CM = {
