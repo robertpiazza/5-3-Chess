@@ -13,13 +13,22 @@
     <div id="turn-display">White's Turn</div>
     <div id="player-color-indicator" class="hidden"></div>
     <div id="status-display"></div>
-    <button id="new-game-btn" disabled>New Game</button>
-    <button id="view-toggle-btn" disabled>Cube View</button>
-    <button id="moves-btn" onclick="document.getElementById('moves-modal').classList.remove('hidden')">
-      ? How pieces move
-    </button>
     <div id="controls-hint">
       Drag to orbit &nbsp;|&nbsp; Scroll to zoom
+    </div>
+  </div>
+
+  <!-- ── Hamburger menu (top right) ───────────────────────────────────────── -->
+  <div id="hamburger-menu">
+    <button id="hamburger-btn" aria-label="Menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div id="hamburger-dropdown">
+      <button id="new-game-btn" disabled>New Game</button>
+      <button id="view-toggle-btn" disabled>Cube View</button>
+      <button id="moves-btn">? How pieces move</button>
     </div>
   </div>
 
@@ -133,5 +142,35 @@
   }
   </script>
   <script type="module" src="js/main.js"></script>
+  <script>
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerDropdown = document.getElementById('hamburger-dropdown');
+    const movesBtn = document.getElementById('moves-btn');
+    const movesModal = document.getElementById('moves-modal');
+
+    hamburgerBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      hamburgerDropdown.classList.toggle('open');
+    });
+
+    movesBtn.addEventListener('click', () => {
+      movesModal.classList.remove('hidden');
+      hamburgerDropdown.classList.remove('open');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', e => {
+      if (!document.getElementById('hamburger-menu').contains(e.target)) {
+        hamburgerDropdown.classList.remove('open');
+      }
+    });
+
+    // Close dropdown after New Game / View Toggle are clicked
+    hamburgerDropdown.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON' && e.target.id !== 'moves-btn') {
+        hamburgerDropdown.classList.remove('open');
+      }
+    });
+  </script>
 </body>
 </html>

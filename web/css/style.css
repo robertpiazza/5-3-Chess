@@ -74,7 +74,13 @@ body {
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  width: 100%;
+  text-align: left;
+}
+
+#play-again-btn {
   width: fit-content;
+  text-align: center;
 }
 
 #new-game-btn:hover,
@@ -90,7 +96,7 @@ body {
   cursor: not-allowed;
 }
 
-/* "How pieces move" button in HUD */
+/* "How pieces move" button in dropdown */
 #moves-btn {
   pointer-events: all;
   background: none;
@@ -99,15 +105,69 @@ body {
   font-size: 13px;
   cursor: pointer;
   text-decoration: underline;
-  padding: 0;
+  padding: 6px 16px;
   text-align: left;
   opacity: 0.85;
   transition: opacity 0.15s;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  width: 100%;
 }
 
 #moves-btn:hover {
   opacity: 1;
+}
+
+/* ── Hamburger menu ─────────────────────────────────────────────────────── */
+
+#hamburger-menu {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+}
+
+#hamburger-btn {
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  pointer-events: all;
+  transition: background 0.2s;
+}
+
+#hamburger-btn:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+#hamburger-btn span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #a8d8ea;
+  border-radius: 2px;
+}
+
+#hamburger-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #16213e;
+  border: 1px solid #2d6a9f;
+  border-radius: 8px;
+  padding: 8px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 168px;
+  pointer-events: all;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+#hamburger-dropdown.open {
+  display: flex;
 }
 
 /* "How pieces move" modal overlay */
