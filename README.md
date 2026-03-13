@@ -2,7 +2,7 @@
 
 A browser-based implementation of **Raumschach** (5×5×5 three-dimensional chess) built with vanilla JavaScript and Three.js. Play locally, challenge a friend online, or test your skills against the AI — all in a fully interactive 3D board.
 
-🎮 **[Play now on GitHub Pages](https://robertpiazza.github.io/5-3-Chess/web/)**
+**[Play now](https://robertpiazza.com/5-3-Chess/)**
 
 ---
 
