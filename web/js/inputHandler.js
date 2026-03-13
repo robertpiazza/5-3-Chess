@@ -40,6 +40,9 @@ export class InputHandler {
   _onClick(e) {
     if (this.gameState.status === 'checkmate' || this.gameState.status === 'stalemate') return;
 
+    // Block clicks while a piece animation is in progress
+    if (this.pieceManager.isAnimating) return;
+
     // In network mode, block clicks when it's not this player's turn
     if (this.localColor !== null && this.gameState.currentTurn !== this.localColor) return;
 
@@ -103,11 +106,11 @@ export class InputHandler {
     this.board.showHighlights(pos, moves);
   }
 
-  _executeMove(src, dst) {
+  async _executeMove(src, dst) {
     const gs = this.gameState;
     const piece = gs.get(src.x, src.y, src.z);
 
-    // Check for pawn promotion
+    // Check for pawn promotion before animating (prompt is blocking)
     let promotionType = null;
     if (piece.type === PIECE.PAWN) {
       const promoteZ = piece.color === COLOR.WHITE ? 4 : 0;
@@ -116,8 +119,8 @@ export class InputHandler {
       }
     }
 
-    // Move the 3D mesh
-    this.pieceManager.moveMesh(src, dst);
+    // Animate the 3D mesh — await so game state updates after the piece lands
+    await this.pieceManager.moveMesh(src, dst);
 
     // Update game state
     gs.executeMove(src, dst, promotionType);
@@ -128,7 +131,7 @@ export class InputHandler {
     // Clear highlights
     this.board.showHighlights(null, []);
 
-    // Send move to opponent over the network (no-op in local play)
+    // Send move to opponent over the network / trigger AI
     if (this.networkSendMove) this.networkSendMove(src, dst, promotionType);
 
     // Evaluate new position

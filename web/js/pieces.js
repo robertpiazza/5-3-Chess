@@ -126,10 +126,12 @@ function _makeBody(pieceType, color) {
 
 export class PieceManager {
   constructor(scene, gameState, board) {
-    this.scene     = scene;
-    this.gameState = gameState;
-    this.board     = board;
-    this.meshMap   = new Map(); // `${x},${y},${z}` → THREE.Group
+    this.scene       = scene;
+    this.gameState   = gameState;
+    this.board       = board;
+    this.meshMap     = new Map(); // `${x},${y},${z}` → THREE.Group
+    this._animations = [];        // active move animations
+    this.isAnimating = false;     // true while any piece is in flight
   }
 
   key(x, y, z) { return `${x},${y},${z}`; }
@@ -155,24 +157,68 @@ export class PieceManager {
     this.meshMap.set(this.key(x, y, z), group);
   }
 
+  /**
+   * Animate a piece from src to dst along an arc.
+   * Returns a Promise that resolves when the animation completes.
+   * The meshMap is updated immediately so game-logic stays consistent.
+   */
   moveMesh(src, dst) {
     const srcKey = this.key(src.x, src.y, src.z);
     const dstKey = this.key(dst.x, dst.y, dst.z);
 
+    // Remove captured piece immediately
     if (this.meshMap.has(dstKey)) {
       this.scene.remove(this.meshMap.get(dstKey));
       this.meshMap.delete(dstKey);
     }
 
     const mesh = this.meshMap.get(srcKey);
-    if (!mesh) return;
+    if (!mesh) return Promise.resolve();
 
-    mesh.position.copy(this.board.cellPosition(dst.x, dst.y, dst.z));
+    // Update the map right away so board logic is always correct
     mesh.userData.boardX = dst.x;
     mesh.userData.boardY = dst.y;
     mesh.userData.boardZ = dst.z;
     this.meshMap.delete(srcKey);
     this.meshMap.set(dstKey, mesh);
+
+    // Build arc: quadratic bezier with an elevated midpoint
+    const from = mesh.position.clone();
+    const to   = this.board.cellPosition(dst.x, dst.y, dst.z);
+    const dist = from.distanceTo(to);
+    const mid  = new THREE.Vector3().lerpVectors(from, to, 0.5);
+    mid.y += Math.max(1.0, dist * 0.4); // arc height scales with distance
+
+    const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
+
+    this.isAnimating = true;
+    return new Promise(resolve => {
+      this._animations.push({ mesh, curve, duration: 0.35, elapsed: 0, resolve });
+    });
+  }
+
+  /**
+   * Advance all active animations. Call once per frame with the frame delta (seconds).
+   */
+  tick(delta) {
+    if (this._animations.length === 0) return;
+
+    this._animations = this._animations.filter(anim => {
+      anim.elapsed += delta;
+      const t  = Math.min(anim.elapsed / anim.duration, 1.0);
+      // Smoothstep easing: slow start, fast middle, slow finish
+      const ts = t * t * (3 - 2 * t);
+
+      anim.mesh.position.copy(anim.curve.getPoint(ts));
+
+      if (t >= 1.0) {
+        anim.resolve();
+        return false; // remove completed animation
+      }
+      return true;
+    });
+
+    this.isAnimating = this._animations.length > 0;
   }
 
   refreshCell(x, y, z) {

@@ -282,10 +282,6 @@ body {
 .dot.unicorn  { background: #1abc9c; }
 .dot.pawn     { background: #95a5a6; }
 
-#controls-hint {
-  font-size: 11px;
-  color: #2a1a08;
-}
 
 /* Player color indicator (network mode) */
 #player-color-indicator {
@@ -333,6 +329,18 @@ body {
   align-items: center;
   gap: 14px;
   min-width: 320px;
+}
+
+/* Each panel is its own flex column so children are evenly spaced */
+#lobby-mode,
+#lobby-host,
+#lobby-join,
+#lobby-ai {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .lobby-title {
@@ -389,6 +397,7 @@ body {
   padding: 6px 0 !important;
   width: auto !important;
   text-decoration: underline;
+  align-self: flex-start;
 }
 
 .btn-back:hover:not(:disabled) {
@@ -437,7 +446,8 @@ body {
 
 #lobby-host.hidden,
 #lobby-join.hidden,
-#lobby-mode.hidden {
+#lobby-mode.hidden,
+#lobby-ai.hidden {
   display: none;
 }
 

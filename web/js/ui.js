@@ -68,7 +68,7 @@ export class UI {
   /** Show one lobby panel ('mode' | 'host' | 'join'), hide the others. */
   showLobby(panel) {
     document.getElementById('lobby-overlay').classList.remove('hidden');
-    for (const p of ['mode', 'host', 'join']) {
+    for (const p of ['mode', 'host', 'join', 'ai']) {
       document.getElementById(`lobby-${p}`)
         .classList.toggle('hidden', p !== panel);
     }

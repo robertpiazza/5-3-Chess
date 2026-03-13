@@ -8,6 +8,7 @@ import { InputHandler } from './inputHandler.js';
 import { UI } from './ui.js';
 import { NetworkManager } from './network.js';
 import { isInCheck, hasAnyLegalMove } from './moveValidator.js';
+import { findBestMove } from './ai.js';
 
 // ── Scene Setup ───────────────────────────────────────────────────────────────
 
@@ -43,18 +44,24 @@ controls.enablePan = false;
 controls.target.set(0, 4, 0);
 controls.update();
 
+const clock = new THREE.Clock();
+
 // ── Game State & Modules ──────────────────────────────────────────────────────
 
 let gameState, board, pieceManager, inputHandler, ui;
 
-// Active network connection (null in local play)
+// Active network connection (null in local / AI play)
 let activeNetwork = null;
+
+// AI opponent color when in AI mode (null otherwise)
+let aiOpponentColor = null;
 
 /**
  * @param {boolean}     keepViewMode  Preserve current board view (layers/cube)
  * @param {object|null} netOpts       { network: NetworkManager, localColor: string }
+ * @param {object|null} aiOpts        { playerColor: string }  — AI mode
  */
-function initGame(keepViewMode = false, netOpts = null) {
+function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
   const prevMode = board ? board.viewMode : 'layers';
 
   // Disconnect any previous network session
@@ -63,6 +70,10 @@ function initGame(keepViewMode = false, netOpts = null) {
     activeNetwork = null;
   }
   if (netOpts) activeNetwork = netOpts.network;
+
+  aiOpponentColor = aiOpts
+    ? (aiOpts.playerColor === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE)
+    : null;
 
   // Remove all non-light scene objects
   const toRemove = [];
@@ -83,8 +94,8 @@ function initGame(keepViewMode = false, netOpts = null) {
     pieceManager.syncFromState();
   }
 
-  // "New Game" / "Play Again" always returns to local pass-and-play
-  const onNewGame = () => initGame(true);
+  // "New Game" / "Play Again" returns to the lobby
+  const onNewGame = () => { ui.showLobby('mode'); };
 
   ui = new UI(onNewGame, switchViewMode);
   ui.hideGameOver();
@@ -93,31 +104,74 @@ function initGame(keepViewMode = false, netOpts = null) {
 
   if (netOpts) {
     ui.showColorIndicator(netOpts.localColor);
+  } else if (aiOpts) {
+    ui.showColorIndicator(aiOpts.playerColor);
   } else {
     ui.hideColorIndicator();
   }
 
-  const sendMove = netOpts
-    ? (src, dst, pt) => activeNetwork && activeNetwork.sendMove(src, dst, pt)
-    : null;
+  // Choose the post-move callback: network send, AI trigger, or nothing
+  let sendMove = null;
+  if (netOpts) {
+    sendMove = (src, dst, pt) => activeNetwork && activeNetwork.sendMove(src, dst, pt);
+  } else if (aiOpts) {
+    sendMove = () => {
+      if (gameState.status !== 'playing' && gameState.status !== 'check') return;
+      setTimeout(() => {
+        const move = findBestMove(gameState.board, aiOpponentColor);
+        if (move) applyAiMove(move.src, move.dst);
+      }, 400);
+    };
+  }
 
   inputHandler = new InputHandler(
     camera, renderer, gameState, board, pieceManager, ui,
-    netOpts?.localColor ?? null,
+    netOpts?.localColor ?? aiOpts?.playerColor ?? null,
     sendMove,
   );
 }
 
 // ── Apply an opponent's move received from Firebase ───────────────────────────
 
-function applyNetworkMove(src, dst, promotionType) {
-  pieceManager.moveMesh(src, dst);
+async function applyNetworkMove(src, dst, promotionType) {
+  await pieceManager.moveMesh(src, dst);
   gameState.executeMove(src, dst, promotionType);
   if (promotionType) pieceManager.refreshCell(dst.x, dst.y, dst.z);
 
   board.showHighlights(null, []);
 
   // Evaluate the new position (same logic as InputHandler._updateGameStatus)
+  const color   = gameState.currentTurn;
+  const inCheck = isInCheck(gameState.board, color);
+  const anyMove = hasAnyLegalMove(gameState.board, color);
+
+  if (!anyMove) {
+    gameState.status = inCheck ? 'checkmate' : 'stalemate';
+    ui.showGameOver(gameState.status, color);
+  } else {
+    gameState.status = inCheck ? 'check' : 'playing';
+  }
+
+  ui.update(gameState);
+}
+
+// ── Apply the AI's chosen move ────────────────────────────────────────────────
+
+async function applyAiMove(src, dst) {
+  // AI always promotes to Queen (handled in ai.js board sim; mirror here for visuals)
+  let promotionType = null;
+  const piece = gameState.get(src.x, src.y, src.z);
+  if (piece && piece.type === 'P') {
+    const promoteZ = piece.color === COLOR.WHITE ? 4 : 0;
+    if (dst.z === promoteZ) promotionType = 'Q';
+  }
+
+  await pieceManager.moveMesh(src, dst);
+  gameState.executeMove(src, dst, promotionType);
+  if (promotionType) pieceManager.refreshCell(dst.x, dst.y, dst.z);
+
+  board.showHighlights(null, []);
+
   const color   = gameState.currentTurn;
   const inCheck = isInCheck(gameState.board, color);
   const anyMove = hasAnyLegalMove(gameState.board, color);
@@ -245,6 +299,39 @@ function _setupLobby() {
     initGame();
   });
 
+  // ── vs AI ────────────────────────────────────────────────────────────────
+  document.getElementById('btn-ai').addEventListener('click', () => {
+    ui.showLobby('ai');
+  });
+
+  const _startAiGame = playerColor => {
+    ui.hideLobby();
+    initGame(false, null, { playerColor });
+    // If the player chose Black, the AI (White) moves first immediately
+    if (playerColor === COLOR.BLACK) {
+      setTimeout(() => {
+        const move = findBestMove(gameState.board, aiOpponentColor);
+        if (move) applyAiMove(move.src, move.dst);
+      }, 400);
+    }
+  };
+
+  document.getElementById('btn-ai-white').addEventListener('click', () => {
+    _startAiGame(COLOR.WHITE);
+  });
+
+  document.getElementById('btn-ai-black').addEventListener('click', () => {
+    _startAiGame(COLOR.BLACK);
+  });
+
+  document.getElementById('btn-ai-random').addEventListener('click', () => {
+    _startAiGame(Math.random() < 0.5 ? COLOR.WHITE : COLOR.BLACK);
+  });
+
+  document.getElementById('btn-back-ai').addEventListener('click', () => {
+    ui.showLobby('mode');
+  });
+
   // ── Back buttons ────────────────────────────────────────────────────────
   document.getElementById('btn-back-host').addEventListener('click', () => {
     if (activeNetwork) { activeNetwork.detach(); activeNetwork = null; }
@@ -265,7 +352,7 @@ loadAllModels()
 
     // Hide the loading text and enable lobby buttons
     document.getElementById('lobby-loading').style.display = 'none';
-    for (const id of ['btn-create', 'btn-join-panel', 'btn-local']) {
+    for (const id of ['btn-create', 'btn-join-panel', 'btn-local', 'btn-ai']) {
       document.getElementById(id).disabled = false;
     }
 
@@ -274,7 +361,7 @@ loadAllModels()
     const _lobbyUi = {
       showLobby: panel => {
         document.getElementById('lobby-overlay').classList.remove('hidden');
-        for (const p of ['mode', 'host', 'join'])
+        for (const p of ['mode', 'host', 'join', 'ai'])
           document.getElementById(`lobby-${p}`).classList.toggle('hidden', p !== panel);
       },
       hideLobby: () => document.getElementById('lobby-overlay').classList.add('hidden'),
@@ -294,6 +381,8 @@ loadAllModels()
 
 function animate() {
   requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  if (pieceManager) pieceManager.tick(delta);
   controls.update();
   renderer.render(scene, camera);
 }
