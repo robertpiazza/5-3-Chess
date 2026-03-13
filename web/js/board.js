@@ -105,8 +105,8 @@ export class Board {
   showHintHighlight(src, dst) {
     this.clearHintHighlight();
     if (this.viewMode === 'layers') {
-      this._addHintRing(src, COLOR_HINT_SRC);
-      this._addHintRing(dst, COLOR_HINT_DST);
+      this._addHintDisc(src, COLOR_HINT_SRC);
+      this._addHintDisc(dst, COLOR_HINT_DST);
     } else {
       this._addHintBox(src, COLOR_HINT_SRC);
       this._addHintBox(dst, COLOR_HINT_DST);
@@ -207,15 +207,17 @@ export class Board {
     }
   }
 
-  _addHintRing(pos, color) {
-    const geo = new THREE.RingGeometry(0.28, 0.48, 24);
+  _addHintDisc(pos, color) {
+    // Filled disc so the orange is visible inside the legal-move ring and
+    // partially visible beneath pieces.  Placed 0.01 above the move ring (y+0.02).
+    const geo = new THREE.CircleGeometry(0.48, 32);
     geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.90, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(geo, mat);
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.60, side: THREE.DoubleSide });
+    const disc = new THREE.Mesh(geo, mat);
     const p = this.cellPosition(pos.x, pos.y, pos.z);
-    ring.position.copy(p).setY(p.y + 0.02);
-    this.scene.add(ring);
-    this.hintMeshes.push(ring);
+    disc.position.copy(p).setY(p.y + 0.02);
+    this.scene.add(disc);
+    this.hintMeshes.push(disc);
   }
 
   _addHintBox(pos, color) {
