@@ -56,6 +56,12 @@ let activeNetwork = null;
 // AI opponent color when in AI mode (null otherwise)
 let aiOpponentColor = null;
 
+// Whether we are waiting on the opponent to approve an undo
+let _undoPending = false;
+
+// Hint button element (grabbed once, reused across game resets)
+const _hintBtn = document.getElementById('hint-btn');
+
 /**
  * @param {boolean}     keepViewMode  Preserve current board view (layers/cube)
  * @param {object|null} netOpts       { network: NetworkManager, localColor: string }
@@ -124,11 +130,94 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     };
   }
 
+  _undoPending = false;
+
+  // Reset hint state for the new game
+  board.clearHintHighlight();
+  _hintBtn.disabled = false;
+  _hintBtn.classList.remove('thinking');
+  _hintBtn.onclick = showHint;
+
+  const isNetwork = !!netOpts;
+
+  // Configure undo button label and handler for this game mode
+  if (!isNetwork) {
+    ui.setUndoBtn(false, 'Undo', undoLastMove);
+  } else {
+    ui.setUndoBtn(false, 'Request Undo', requestNetworkUndo);
+  }
+
+  const onAfterMove = () => {
+    board.clearHintHighlight();
+    _updateUndoBtn();
+  };
+
   inputHandler = new InputHandler(
     camera, renderer, gameState, board, pieceManager, ui,
     netOpts?.localColor ?? aiOpts?.playerColor ?? null,
     sendMove,
+    onAfterMove,
   );
+}
+
+// ── Undo helpers ──────────────────────────────────────────────────────────────
+
+function undoLastMove() {
+  if (!gameState.undoMove()) return;
+  board.showHighlights(null, []);
+  board.clearHintHighlight();
+  pieceManager.syncFromState();
+  ui.hideGameOver();
+  ui.update(gameState);
+  _updateUndoBtn();
+}
+
+function _updateUndoBtn() {
+  const hasHistory = gameState._history.length > 0;
+  if (!activeNetwork) {
+    ui.setUndoBtn(hasHistory);
+  } else {
+    // In network mode, "Request Undo" is only available right after your move
+    // (it's now the opponent's turn) and no request is already in flight.
+    const justMoved = gameState.currentTurn !== activeNetwork.localColor;
+    ui.setUndoBtn(hasHistory && justMoved && !_undoPending);
+  }
+}
+
+// ── Hint helpers ──────────────────────────────────────────────────────────────
+
+function showHint() {
+  // In network mode only allow hints on your own turn
+  if (activeNetwork && gameState.currentTurn !== activeNetwork.localColor) return;
+  if (gameState.status === 'checkmate' || gameState.status === 'stalemate') return;
+
+  // Clear any previous hint and enter "thinking" state
+  board.clearHintHighlight();
+  _hintBtn.disabled = true;
+  _hintBtn.classList.add('thinking');
+
+  // Run AI asynchronously so the browser can render the pulse animation first
+  setTimeout(() => {
+    const move = findBestMove(gameState.board, gameState.currentTurn);
+    _hintBtn.classList.remove('thinking');
+    _hintBtn.disabled = false;
+
+    if (move) {
+      // Clear any active piece selection so the hint is clearly visible
+      gameState.selectedPos = null;
+      gameState.legalMoves  = [];
+      board.showHighlights(null, []);
+      board.showHintHighlight(move.src, move.dst);
+    }
+  }, 50);
+}
+
+function requestNetworkUndo() {
+  if (_undoPending || !activeNetwork) return;
+  _undoPending = true;
+  _updateUndoBtn();
+  activeNetwork.sendUndoRequest();
+  ui.showUndoPending();
 }
 
 // ── Apply an opponent's move received from Firebase ───────────────────────────
@@ -139,6 +228,7 @@ async function applyNetworkMove(src, dst, promotionType) {
   if (promotionType) pieceManager.refreshCell(dst.x, dst.y, dst.z);
 
   board.showHighlights(null, []);
+  board.clearHintHighlight();
 
   // Evaluate the new position (same logic as InputHandler._updateGameStatus)
   const color   = gameState.currentTurn;
@@ -153,6 +243,7 @@ async function applyNetworkMove(src, dst, promotionType) {
   }
 
   ui.update(gameState);
+  _updateUndoBtn();
 }
 
 // ── Apply the AI's chosen move ────────────────────────────────────────────────
@@ -244,6 +335,31 @@ function _setupLobby() {
       network.startListening((src, dst, promotionType) => {
         applyNetworkMove(src, dst, promotionType);
       });
+      network.startListeningUndo(
+        () => {  // opponent requests undo
+          ui.showUndoRequest(
+            () => {  // accept
+              ui.hideUndoOverlay();
+              activeNetwork.sendUndoResponse(true);
+              undoLastMove();
+            },
+            () => {  // decline
+              ui.hideUndoOverlay();
+              activeNetwork.sendUndoResponse(false);
+            }
+          );
+        },
+        (approved) => {  // response to our request
+          _undoPending = false;
+          ui.hideUndoOverlay();
+          if (approved) {
+            undoLastMove();
+          } else {
+            ui.showUndoStatus('Undo declined.');
+            _updateUndoBtn();
+          }
+        }
+      );
     });
   });
 
@@ -286,6 +402,31 @@ function _setupLobby() {
     network.startListening((src, dst, promotionType) => {
       applyNetworkMove(src, dst, promotionType);
     });
+    network.startListeningUndo(
+      () => {  // opponent requests undo
+        ui.showUndoRequest(
+          () => {  // accept
+            ui.hideUndoOverlay();
+            activeNetwork.sendUndoResponse(true);
+            undoLastMove();
+          },
+          () => {  // decline
+            ui.hideUndoOverlay();
+            activeNetwork.sendUndoResponse(false);
+          }
+        );
+      },
+      (approved) => {  // response to our request
+        _undoPending = false;
+        ui.hideUndoOverlay();
+        if (approved) {
+          undoLastMove();
+        } else {
+          ui.showUndoStatus('Undo declined.');
+          _updateUndoBtn();
+        }
+      }
+    );
   });
 
   // Allow pressing Enter in the code input

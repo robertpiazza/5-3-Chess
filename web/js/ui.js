@@ -8,6 +8,9 @@ export class UI {
     this.resultText     = document.getElementById('game-over-result');
     this.viewBtn        = document.getElementById('view-toggle-btn');
     this.colorIndicator = document.getElementById('player-color-indicator');
+    this.undoBtn        = document.getElementById('undo-btn');
+    this.undoOverlay    = document.getElementById('undo-request-overlay');
+    this.undoMsg        = document.getElementById('undo-request-msg');
 
     // Use onclick so repeated initGame() calls replace the handler cleanly,
     // preventing stacking event listeners across game resets.
@@ -19,6 +22,10 @@ export class UI {
 
     this.viewBtn.onclick  = onToggleView;
     this.viewBtn.disabled = false;
+
+    this.undoBtn.disabled = true;
+    this.undoBtn.onclick  = null;
+    this.hideUndoOverlay();
   }
 
   // ── Game state display ────────────────────────────────────────────────────
@@ -63,6 +70,46 @@ export class UI {
 
   hideColorIndicator() {
     this.colorIndicator.className = 'hidden';
+  }
+
+  // ── Undo button ───────────────────────────────────────────────────────────
+
+  setUndoBtn(enabled, label = null, handler = null) {
+    this.undoBtn.disabled = !enabled;
+    if (label)   this.undoBtn.textContent = label;
+    if (handler) this.undoBtn.onclick = handler;
+  }
+
+  // ── Undo request overlay ──────────────────────────────────────────────────
+
+  /** Show "waiting for opponent to respond" state. */
+  showUndoPending() {
+    this.undoMsg.textContent = 'Waiting for opponent to approve undo…';
+    document.getElementById('undo-request-buttons').classList.add('hidden');
+    this.undoOverlay.classList.remove('hidden');
+  }
+
+  /** Show opponent's undo request with Accept / Decline buttons. */
+  showUndoRequest(onAccept, onDecline) {
+    this.undoMsg.textContent = 'Opponent requests to undo their last move.';
+    const btns = document.getElementById('undo-request-buttons');
+    btns.classList.remove('hidden');
+    document.getElementById('undo-accept-btn').onclick  = onAccept;
+    document.getElementById('undo-decline-btn').onclick = onDecline;
+    this.undoOverlay.classList.remove('hidden');
+  }
+
+  hideUndoOverlay() {
+    this.undoOverlay.classList.add('hidden');
+  }
+
+  /** Show a brief status message (e.g. "Undo declined.") */
+  showUndoStatus(msg, durationMs = 2500) {
+    this.undoMsg.textContent = msg;
+    document.getElementById('undo-request-buttons').classList.add('hidden');
+    this.undoOverlay.classList.remove('hidden');
+    clearTimeout(this._undoStatusTimer);
+    this._undoStatusTimer = setTimeout(() => this.hideUndoOverlay(), durationMs);
   }
 
   /** Show one lobby panel ('mode' | 'host' | 'join'), hide the others. */

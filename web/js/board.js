@@ -13,6 +13,8 @@ const COLOR_LIGHT     = new THREE.Color(0xd4b896);
 const COLOR_DARK      = new THREE.Color(0x7a5c3a);
 const COLOR_HIGHLIGHT = new THREE.Color(0x44dd88);
 const COLOR_SELECTED  = new THREE.Color(0xffcc00);
+const COLOR_HINT_SRC  = new THREE.Color(0x00ccff);  // cyan  — piece to move
+const COLOR_HINT_DST  = new THREE.Color(0xff8800);  // orange — destination
 
 export class Board {
   constructor(scene) {
@@ -22,6 +24,7 @@ export class Board {
     this.squareMeshes = [];   // layers mode: [z][x][y]
     this.cubeMeshes   = [];   // cube mode: flat array
     this.highlightMeshes = [];
+    this.hintMeshes = [];
     this._buildLayers();
   }
 
@@ -34,6 +37,7 @@ export class Board {
     if (mode === 'layers') this._buildLayers();
     else this._buildCube();
     this.clearHighlights();
+    this.clearHintHighlight();
   }
 
   // Scale factor pieces should use in the current view
@@ -61,6 +65,23 @@ export class Board {
   clearHighlights() {
     for (const m of this.highlightMeshes) this.scene.remove(m);
     this.highlightMeshes = [];
+  }
+
+  clearHintHighlight() {
+    for (const m of this.hintMeshes) this.scene.remove(m);
+    this.hintMeshes = [];
+  }
+
+  /** Show a hint move (cyan = piece to move, orange = destination). */
+  showHintHighlight(src, dst) {
+    this.clearHintHighlight();
+    if (this.viewMode === 'layers') {
+      this._addHintRing(src, COLOR_HINT_SRC);
+      this._addHintRing(dst, COLOR_HINT_DST);
+    } else {
+      this._addHintBox(src, COLOR_HINT_SRC);
+      this._addHintBox(dst, COLOR_HINT_DST);
+    }
   }
 
   showHighlights(selectedPos, legalMoves) {
@@ -155,6 +176,28 @@ export class Board {
         this._add(new THREE.Line(geo2, mat));
       }
     }
+  }
+
+  _addHintRing(pos, color) {
+    const geo = new THREE.RingGeometry(0.28, 0.48, 24);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.90, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(geo, mat);
+    const p = this.cellPosition(pos.x, pos.y, pos.z);
+    ring.position.copy(p).setY(p.y + 0.02);
+    this.scene.add(ring);
+    this.hintMeshes.push(ring);
+  }
+
+  _addHintBox(pos, color) {
+    const hl  = CUBE_SIZE * 1.10;
+    const box = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(hl, hl, hl)),
+      new THREE.LineBasicMaterial({ color, linewidth: 2 })
+    );
+    box.position.copy(this._cubeCenter(pos.x, pos.y, pos.z));
+    this.scene.add(box);
+    this.hintMeshes.push(box);
   }
 
   _showHighlightsLayers(selectedPos, legalMoves) {
