@@ -269,12 +269,12 @@ export class Board {
 
     for (const mv of legalMoves) {
       const key = `${mv.x},${mv.y},${mv.z}`;
-      const threat = threatMap?.get(key) ?? { attackers: 0, defenders: 0 };
-      const total = threat.attackers + threat.defenders;
+      const threat = threatMap?.get(key) ?? { greenScore: 0, redScore: 0 };
+      const total = threat.greenScore + threat.redScore;
       const pos = this.cellPosition(mv.x, mv.y, mv.z);
       const yPos = pos.y + 0.01;
 
-      if (total === 0 || threat.attackers === 0) {
+      if (total === 0 || threat.redScore === 0) {
         // Safe square — solid green ring
         const geo = new THREE.RingGeometry(0.28, 0.44, 24);
         geo.rotateX(-Math.PI / 2);
@@ -284,8 +284,8 @@ export class Board {
         this.scene.add(ring);
         this.highlightMeshes.push(ring);
       } else {
-        // Contested square — split ring: green arc (defenders) + red arc (attackers)
-        const greenFrac  = threat.defenders / total;
+        // Contested square — split ring proportional to material at stake
+        const greenFrac  = threat.greenScore / total;
         const greenAngle = greenFrac * Math.PI * 2;
         const redAngle   = Math.PI * 2 - greenAngle;
 
@@ -367,11 +367,11 @@ export class Board {
 
     for (const mv of legalMoves) {
       const key = `${mv.x},${mv.y},${mv.z}`;
-      const threat = threatMap?.get(key) ?? { attackers: 0, defenders: 0 };
-      const total = threat.attackers + threat.defenders;
-      // Lerp green → red based on attacker fraction; pure green when no threats
-      const attackFrac = total === 0 ? 0 : threat.attackers / total;
-      const color = new THREE.Color().copy(COLOR_HIGHLIGHT).lerp(COLOR_THREAT, attackFrac);
+      const threat = threatMap?.get(key) ?? { greenScore: 0, redScore: 0 };
+      const total = threat.greenScore + threat.redScore;
+      // Lerp green → red based on material-loss fraction; pure green when no threats
+      const redFrac = total === 0 ? 0 : threat.redScore / total;
+      const color = new THREE.Color().copy(COLOR_HIGHLIGHT).lerp(COLOR_THREAT, redFrac);
 
       const box = new THREE.LineSegments(hlGeo,
         new THREE.LineBasicMaterial({ color }));

@@ -176,11 +176,31 @@ export function getLegalMoves(boardArr, x, y, z) {
   });
 }
 
+// Piece values used for exchange evaluation
+const PIECE_VALUES = {
+  [PIECE.PAWN]:    100,
+  [PIECE.KNIGHT]:  350,
+  [PIECE.BISHOP]:  350,
+  [PIECE.UNICORN]: 475,
+  [PIECE.ROOK]:    525,
+  [PIECE.QUEEN]:  1000,
+  [PIECE.KING]:  20000,
+};
+
 /**
- * Count how many opponent pieces can recapture at targetPos (attackers) and
- * how many own pieces besides the moving piece defend it (defenders), evaluated
- * on the board state AFTER the move (piece relocated, captured piece removed).
- * Uses pseudo-legal moves so pinned pieces still count as threats.
+ * Static Exchange Evaluation (SEE) for moving a piece to targetPos.
+ * Both sides recapture with their cheapest available piece, alternating
+ * until one side runs out of pieces.
+ *
+ * Returns { greenScore, redScore }:
+ *   greenScore — total material the moving side expects to gain
+ *   redScore   — total material the moving side expects to lose
+ *
+ * Example: white bishop → square defended by own pawn, attacked by black
+ * knight (350) and black queen (1000).
+ *   Sequence: knight takes bishop (−350), pawn takes knight (+350),
+ *             queen takes pawn (−100).
+ *   → greenScore = 350, redScore = 450, ring = 350/800 green, 450/800 red.
  */
 export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
   const opponentColor = movingColor === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE;
@@ -191,34 +211,55 @@ export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
   base[tx][ty][tz] = base[selectedPos.x][selectedPos.y][selectedPos.z];
   base[selectedPos.x][selectedPos.y][selectedPos.z] = null;
 
-  // Defender simulation: target square holds a dummy *enemy* piece so that own
-  // sliding/stepping pieces can "see" it as capturable. Without this, own pieces
-  // see a friendly piece at target and never generate a move there — defenders
-  // would always read as zero.
+  // Defender simulation: target holds a dummy enemy so own sliding/stepping
+  // pieces can "see" it as capturable (same fix as before).
   const defSim = base.map(p => p.map(r => [...r]));
   defSim[tx][ty][tz] = { ...base[tx][ty][tz], color: opponentColor };
 
-  let attackers = 0, defenders = 0;
+  // Collect piece values for each side, sorted cheapest-first so we always
+  // simulate the most natural (lowest-risk) recapture first.
+  const attackerVals = [];
+  const defenderVals = [];
 
   for (let x = 0; x < 5; x++)
     for (let y = 0; y < 5; y++)
       for (let z = 0; z < 5; z++) {
-        if (x === tx && y === ty && z === tz) continue; // skip target itself
+        if (x === tx && y === ty && z === tz) continue;
         const piece = base[x][y][z];
         if (!piece) continue;
+        const val = PIECE_VALUES[piece.type] ?? 0;
 
         if (piece.color === opponentColor) {
-          // Opponent pieces: check base (our piece is their enemy at target)
           if (pseudoLegalMoves(base, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz))
-            attackers++;
+            attackerVals.push(val);
         } else {
-          // Own pieces: check defSim (dummy enemy at target so they can "capture" it)
           if (pseudoLegalMoves(defSim, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz))
-            defenders++;
+            defenderVals.push(val);
         }
       }
 
-  return { attackers, defenders };
+  attackerVals.sort((a, b) => a - b);
+  defenderVals.sort((a, b) => a - b);
+
+  // Simulate alternating captures. onSquareValue tracks the piece currently
+  // sitting on the target (and thus at risk on the next capture).
+  const movingPiece = boardArr[selectedPos.x][selectedPos.y][selectedPos.z];
+  let onSquareValue = PIECE_VALUES[movingPiece.type] ?? 0;
+  let greenScore = 0;
+  let redScore   = 0;
+  let ai = 0, di = 0;
+
+  while (ai < attackerVals.length) {
+    redScore     += onSquareValue;       // opponent captures our piece on the square
+    onSquareValue = attackerVals[ai++];  // their piece is now on the square
+
+    if (di >= defenderVals.length) break; // no defender left to recapture
+
+    greenScore   += onSquareValue;       // we recapture their piece
+    onSquareValue = defenderVals[di++];  // our next piece is now on the square
+  }
+
+  return { greenScore, redScore };
 }
 
 // Check if a color has any legal moves at all
