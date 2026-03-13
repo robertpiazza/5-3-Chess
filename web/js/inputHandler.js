@@ -6,9 +6,10 @@ export class InputHandler {
   /**
    * @param {string|null}   localColor      COLOR.WHITE/BLACK in network play; null = local
    * @param {Function|null} networkSendMove Called with (src, dst, promotionType) after a move
+   * @param {Function|null} onAfterMove     Called after every local move (for undo state updates)
    */
   constructor(camera, renderer, gameState, board, pieceManager, ui,
-              localColor = null, networkSendMove = null) {
+              localColor = null, networkSendMove = null, onAfterMove = null) {
     this.camera          = camera;
     this.renderer        = renderer;
     this.gameState       = gameState;
@@ -17,6 +18,7 @@ export class InputHandler {
     this.ui              = ui;
     this.localColor      = localColor;
     this.networkSendMove = networkSendMove;
+    this.onAfterMove     = onAfterMove;
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -137,6 +139,8 @@ export class InputHandler {
     // Evaluate new position
     this._updateGameStatus();
     this.ui.update(gs);
+
+    if (this.onAfterMove) this.onAfterMove();
   }
 
   _askPromotion() {

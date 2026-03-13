@@ -64,6 +64,7 @@ body {
 
 #new-game-btn,
 #view-toggle-btn,
+#undo-btn,
 #play-again-btn {
   pointer-events: all;
   background: #2d6a9f;
@@ -85,12 +86,14 @@ body {
 
 #new-game-btn:hover,
 #view-toggle-btn:hover,
+#undo-btn:hover,
 #play-again-btn:hover {
   background: #3a85c4;
 }
 
 #new-game-btn:disabled,
-#view-toggle-btn:disabled {
+#view-toggle-btn:disabled,
+#undo-btn:disabled {
   background: #1e3a55;
   color: #556677;
   cursor: not-allowed;
@@ -488,3 +491,69 @@ body {
   font-size: 18px;
   color: #e0e0e0;
 }
+
+/* ── Undo request overlay ───────────────────────────────────────────────── */
+
+#undo-request-overlay {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: flex;
+  justify-content: center;
+}
+
+#undo-request-overlay.hidden {
+  display: none;
+}
+
+#undo-request-box {
+  background: #16213e;
+  border: 1px solid #2d6a9f;
+  border-radius: 10px;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  font-size: 14px;
+  color: #e0e0e0;
+  white-space: nowrap;
+}
+
+#undo-request-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+#undo-request-buttons.hidden {
+  display: none;
+}
+
+#undo-accept-btn {
+  background: #27ae60;
+  color: #fff;
+  border: none;
+  padding: 7px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#undo-accept-btn:hover { background: #2ecc71; }
+
+#undo-decline-btn {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  padding: 7px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#undo-decline-btn:hover { background: #e74c3c; }

@@ -25,6 +25,7 @@
     <div id="hamburger-dropdown">
       <button id="new-game-btn" disabled>New Game</button>
       <button id="view-toggle-btn" disabled>Cube View</button>
+      <button id="undo-btn" disabled>Undo</button>
       <button id="moves-btn">? How pieces move</button>
     </div>
   </div>
@@ -125,6 +126,17 @@
         </tbody>
       </table>
       <button onclick="document.getElementById('moves-modal').classList.add('hidden')">Close</button>
+    </div>
+  </div>
+
+  <!-- ── Undo request overlay ─────────────────────────────────────────────── -->
+  <div id="undo-request-overlay" class="hidden">
+    <div id="undo-request-box">
+      <div id="undo-request-msg"></div>
+      <div id="undo-request-buttons" class="hidden">
+        <button id="undo-accept-btn">Accept</button>
+        <button id="undo-decline-btn">Decline</button>
+      </div>
     </div>
   </div>
 

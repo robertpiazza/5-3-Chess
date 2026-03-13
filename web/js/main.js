@@ -56,6 +56,9 @@ let activeNetwork = null;
 // AI opponent color when in AI mode (null otherwise)
 let aiOpponentColor = null;
 
+// Whether we are waiting on the opponent to approve an undo
+let _undoPending = false;
+
 /**
  * @param {boolean}     keepViewMode  Preserve current board view (layers/cube)
  * @param {object|null} netOpts       { network: NetworkManager, localColor: string }
@@ -124,11 +127,54 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     };
   }
 
+  _undoPending = false;
+
+  const isNetwork = !!netOpts;
+
+  // Configure undo button label and handler for this game mode
+  if (!isNetwork) {
+    ui.setUndoBtn(false, 'Undo', undoLastMove);
+  } else {
+    ui.setUndoBtn(false, 'Request Undo', requestNetworkUndo);
+  }
+
   inputHandler = new InputHandler(
     camera, renderer, gameState, board, pieceManager, ui,
     netOpts?.localColor ?? aiOpts?.playerColor ?? null,
     sendMove,
+    _updateUndoBtn,
   );
+}
+
+// ── Undo helpers ──────────────────────────────────────────────────────────────
+
+function undoLastMove() {
+  if (!gameState.undoMove()) return;
+  board.showHighlights(null, []);
+  pieceManager.syncFromState();
+  ui.hideGameOver();
+  ui.update(gameState);
+  _updateUndoBtn();
+}
+
+function _updateUndoBtn() {
+  const hasHistory = gameState._history.length > 0;
+  if (!activeNetwork) {
+    ui.setUndoBtn(hasHistory);
+  } else {
+    // In network mode, "Request Undo" is only available right after your move
+    // (it's now the opponent's turn) and no request is already in flight.
+    const justMoved = gameState.currentTurn !== activeNetwork.localColor;
+    ui.setUndoBtn(hasHistory && justMoved && !_undoPending);
+  }
+}
+
+function requestNetworkUndo() {
+  if (_undoPending || !activeNetwork) return;
+  _undoPending = true;
+  _updateUndoBtn();
+  activeNetwork.sendUndoRequest();
+  ui.showUndoPending();
 }
 
 // ── Apply an opponent's move received from Firebase ───────────────────────────
@@ -153,6 +199,7 @@ async function applyNetworkMove(src, dst, promotionType) {
   }
 
   ui.update(gameState);
+  _updateUndoBtn();
 }
 
 // ── Apply the AI's chosen move ────────────────────────────────────────────────
@@ -244,6 +291,31 @@ function _setupLobby() {
       network.startListening((src, dst, promotionType) => {
         applyNetworkMove(src, dst, promotionType);
       });
+      network.startListeningUndo(
+        () => {  // opponent requests undo
+          ui.showUndoRequest(
+            () => {  // accept
+              ui.hideUndoOverlay();
+              activeNetwork.sendUndoResponse(true);
+              undoLastMove();
+            },
+            () => {  // decline
+              ui.hideUndoOverlay();
+              activeNetwork.sendUndoResponse(false);
+            }
+          );
+        },
+        (approved) => {  // response to our request
+          _undoPending = false;
+          ui.hideUndoOverlay();
+          if (approved) {
+            undoLastMove();
+          } else {
+            ui.showUndoStatus('Undo declined.');
+            _updateUndoBtn();
+          }
+        }
+      );
     });
   });
 
@@ -286,6 +358,31 @@ function _setupLobby() {
     network.startListening((src, dst, promotionType) => {
       applyNetworkMove(src, dst, promotionType);
     });
+    network.startListeningUndo(
+      () => {  // opponent requests undo
+        ui.showUndoRequest(
+          () => {  // accept
+            ui.hideUndoOverlay();
+            activeNetwork.sendUndoResponse(true);
+            undoLastMove();
+          },
+          () => {  // decline
+            ui.hideUndoOverlay();
+            activeNetwork.sendUndoResponse(false);
+          }
+        );
+      },
+      (approved) => {  // response to our request
+        _undoPending = false;
+        ui.hideUndoOverlay();
+        if (approved) {
+          undoLastMove();
+        } else {
+          ui.showUndoStatus('Undo declined.');
+          _updateUndoBtn();
+        }
+      }
+    );
   });
 
   // Allow pressing Enter in the code input

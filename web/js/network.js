@@ -33,6 +33,8 @@ export class NetworkManager {
     this._seenMoveKeys = new Set();  // keys pre-registered before write + already applied
     this._unsubMoves   = null;       // unsubscribe fn from onValue(moves)
     this._unsubMeta    = null;       // unsubscribe fn from onValue(meta/guestJoined)
+    this._seenUndoKeys = new Set();  // processed undo-event keys
+    this._unsubUndo    = null;       // unsubscribe fn from onValue(undoEvents)
   }
 
   // ── Host flow ───────────────────────────────────────────────────────────────
@@ -124,11 +126,57 @@ export class NetworkManager {
     this._unsubMoves = unsub;
   }
 
+  // ── Undo-request exchange ────────────────────────────────────────────────────
+
+  /** Push an undo request event. */
+  sendUndoRequest() {
+    const eventsRef = ref(_db, `games/${this.roomCode}/undoEvents`);
+    const pushRef   = push(eventsRef);
+    this._seenUndoKeys.add(pushRef.key);
+    set(pushRef, { type: 'request', senderColor: this.localColor });
+  }
+
+  /** Push an undo response (approved / declined). */
+  sendUndoResponse(approved) {
+    const eventsRef = ref(_db, `games/${this.roomCode}/undoEvents`);
+    const pushRef   = push(eventsRef);
+    this._seenUndoKeys.add(pushRef.key);
+    set(pushRef, { type: approved ? 'approved' : 'declined', senderColor: this.localColor });
+  }
+
+  /**
+   * Listen for undo events from the opponent.
+   * onRequest()         — opponent wants to undo their last move
+   * onResponse(approved) — opponent responded to our undo request
+   */
+  startListeningUndo(onRequest, onResponse) {
+    const eventsRef = ref(_db, `games/${this.roomCode}/undoEvents`);
+    const unsub = onValue(eventsRef, snapshot => {
+      if (!snapshot.exists()) return;
+      snapshot.forEach(child => {
+        const key = child.key;
+        if (this._seenUndoKeys.has(key)) return;
+        this._seenUndoKeys.add(key);
+
+        const data = child.val();
+        if (data.senderColor === this.localColor) return;  // own echo
+
+        if (data.type === 'request') {
+          onRequest();
+        } else if (data.type === 'approved' || data.type === 'declined') {
+          onResponse(data.type === 'approved');
+        }
+      });
+    });
+    this._unsubUndo = unsub;
+  }
+
   // ── Cleanup ─────────────────────────────────────────────────────────────────
 
   /** Detach all Firebase listeners. Call before discarding this instance. */
   detach() {
     if (this._unsubMoves) { this._unsubMoves(); this._unsubMoves = null; }
     if (this._unsubMeta)  { this._unsubMeta();  this._unsubMeta  = null; }
+    if (this._unsubUndo)  { this._unsubUndo();  this._unsubUndo  = null; }
   }
 }

@@ -78,6 +78,7 @@ export class GameState {
     this.legalMoves = [];      // array of { x, y, z }
     this.status = 'playing';   // 'playing' | 'check' | 'checkmate' | 'stalemate'
     this.moveCount = 0;
+    this._history = [];        // snapshots for undo
   }
 
   get(x, y, z) {
@@ -108,6 +109,14 @@ export class GameState {
 
   // Execute the move in the real game state
   executeMove(src, dst, promotionType = null) {
+    // Save snapshot before applying the move
+    this._history.push({
+      board:       this.cloneBoard(),
+      currentTurn: this.currentTurn,
+      status:      this.status,
+      moveCount:   this.moveCount,
+    });
+
     const piece = this.get(src.x, src.y, src.z);
     this.set(dst.x, dst.y, dst.z, piece);
     this.set(src.x, src.y, src.z, null);
@@ -124,6 +133,19 @@ export class GameState {
     this.legalMoves = [];
     this.currentTurn = this.currentTurn === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE;
     this.moveCount++;
+  }
+
+  // Restore the previous state. Returns false if there is no history.
+  undoMove() {
+    if (this._history.length === 0) return false;
+    const snap = this._history.pop();
+    this.board       = snap.board;
+    this.currentTurn = snap.currentTurn;
+    this.status      = snap.status;
+    this.moveCount   = snap.moveCount;
+    this.selectedPos = null;
+    this.legalMoves  = [];
+    return true;
   }
 
   findKing(color, boardArr) {
