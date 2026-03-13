@@ -183,25 +183,39 @@ export function getLegalMoves(boardArr, x, y, z) {
  * Uses pseudo-legal moves so pinned pieces still count as threats.
  */
 export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
-  // Simulate the board after the move
-  const sim = boardArr.map(p => p.map(r => [...r]));
-  sim[targetPos.x][targetPos.y][targetPos.z] = sim[selectedPos.x][selectedPos.y][selectedPos.z];
-  sim[selectedPos.x][selectedPos.y][selectedPos.z] = null;
-
   const opponentColor = movingColor === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE;
   const { x: tx, y: ty, z: tz } = targetPos;
+
+  // Base simulation: moving piece relocated to target, source cleared.
+  const base = boardArr.map(p => p.map(r => [...r]));
+  base[tx][ty][tz] = base[selectedPos.x][selectedPos.y][selectedPos.z];
+  base[selectedPos.x][selectedPos.y][selectedPos.z] = null;
+
+  // Defender simulation: target square holds a dummy *enemy* piece so that own
+  // sliding/stepping pieces can "see" it as capturable. Without this, own pieces
+  // see a friendly piece at target and never generate a move there — defenders
+  // would always read as zero.
+  const defSim = base.map(p => p.map(r => [...r]));
+  defSim[tx][ty][tz] = { ...base[tx][ty][tz], color: opponentColor };
+
   let attackers = 0, defenders = 0;
 
   for (let x = 0; x < 5; x++)
     for (let y = 0; y < 5; y++)
       for (let z = 0; z < 5; z++) {
-        if (x === tx && y === ty && z === tz) continue; // skip the target itself
-        const piece = sim[x][y][z];
+        if (x === tx && y === ty && z === tz) continue; // skip target itself
+        const piece = base[x][y][z];
         if (!piece) continue;
-        const moves = pseudoLegalMoves(sim, x, y, z);
-        if (!moves.some(m => m.x === tx && m.y === ty && m.z === tz)) continue;
-        if (piece.color === opponentColor) attackers++;
-        else defenders++;
+
+        if (piece.color === opponentColor) {
+          // Opponent pieces: check base (our piece is their enemy at target)
+          if (pseudoLegalMoves(base, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz))
+            attackers++;
+        } else {
+          // Own pieces: check defSim (dummy enemy at target so they can "capture" it)
+          if (pseudoLegalMoves(defSim, x, y, z).some(m => m.x === tx && m.y === ty && m.z === tz))
+            defenders++;
+        }
       }
 
   return { attackers, defenders };
