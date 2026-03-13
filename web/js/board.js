@@ -12,6 +12,7 @@ const CUBE_SIZE    = 1.0; // visual edge length of each small cube
 const COLOR_LIGHT      = new THREE.Color(0xd4b896);
 const COLOR_DARK       = new THREE.Color(0x7a5c3a);
 const COLOR_HIGHLIGHT  = new THREE.Color(0x44dd88);
+const COLOR_THREAT     = new THREE.Color(0xff4422);  // red   — attacked square
 const COLOR_SELECTED   = new THREE.Color(0xffcc00);
 const COLOR_HINT_SRC   = new THREE.Color(0x00ccff);  // cyan  — piece to move
 const COLOR_HINT_DST   = new THREE.Color(0xff8800);  // orange — destination
@@ -112,12 +113,12 @@ export class Board {
     }
   }
 
-  showHighlights(selectedPos, legalMoves) {
+  showHighlights(selectedPos, legalMoves, threatMap = null) {
     this.clearHighlights();
     if (this.viewMode === 'layers') {
-      this._showHighlightsLayers(selectedPos, legalMoves);
+      this._showHighlightsLayers(selectedPos, legalMoves, threatMap);
     } else {
-      this._showHighlightsCube(selectedPos, legalMoves);
+      this._showHighlightsCube(selectedPos, legalMoves, threatMap);
     }
   }
 
@@ -252,13 +253,12 @@ export class Board {
     this.lastMoveMeshes.push(box);
   }
 
-  _showHighlightsLayers(selectedPos, legalMoves) {
-    const ringGeo = new THREE.RingGeometry(0.28, 0.44, 24);
-    ringGeo.rotateX(-Math.PI / 2);
-
+  _showHighlightsLayers(selectedPos, legalMoves, threatMap = null) {
     if (selectedPos) {
+      const geo = new THREE.RingGeometry(0.28, 0.44, 24);
+      geo.rotateX(-Math.PI / 2);
       const mat = new THREE.MeshBasicMaterial({ color: COLOR_SELECTED, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
-      const ring = new THREE.Mesh(ringGeo, mat);
+      const ring = new THREE.Mesh(geo, mat);
       const pos = this.cellPosition(selectedPos.x, selectedPos.y, selectedPos.z);
       ring.position.copy(pos).setY(pos.y + 0.01);
       this.scene.add(ring);
@@ -266,12 +266,49 @@ export class Board {
     }
 
     for (const mv of legalMoves) {
-      const mat = new THREE.MeshBasicMaterial({ color: COLOR_HIGHLIGHT, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
-      const dot = new THREE.Mesh(ringGeo, mat);
+      const key = `${mv.x},${mv.y},${mv.z}`;
+      const threat = threatMap?.get(key) ?? { attackers: 0, defenders: 0 };
+      const total = threat.attackers + threat.defenders;
       const pos = this.cellPosition(mv.x, mv.y, mv.z);
-      dot.position.copy(pos).setY(pos.y + 0.01);
-      this.scene.add(dot);
-      this.highlightMeshes.push(dot);
+      const yPos = pos.y + 0.01;
+
+      if (total === 0 || threat.attackers === 0) {
+        // Safe square — solid green ring
+        const geo = new THREE.RingGeometry(0.28, 0.44, 24);
+        geo.rotateX(-Math.PI / 2);
+        const mat = new THREE.MeshBasicMaterial({ color: COLOR_HIGHLIGHT, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(geo, mat);
+        ring.position.copy(pos).setY(yPos);
+        this.scene.add(ring);
+        this.highlightMeshes.push(ring);
+      } else {
+        // Contested square — split ring: green arc (defenders) + red arc (attackers)
+        const greenFrac  = threat.defenders / total;
+        const greenAngle = greenFrac * Math.PI * 2;
+        const redAngle   = Math.PI * 2 - greenAngle;
+
+        // Green arc (defenders portion)
+        if (greenAngle > 0.001) {
+          const geoG = new THREE.RingGeometry(0.28, 0.44, 24, 1, 0, greenAngle);
+          geoG.rotateX(-Math.PI / 2);
+          const matG = new THREE.MeshBasicMaterial({ color: COLOR_HIGHLIGHT, transparent: true, opacity: 0.80, side: THREE.DoubleSide });
+          const ringG = new THREE.Mesh(geoG, matG);
+          ringG.position.copy(pos).setY(yPos);
+          this.scene.add(ringG);
+          this.highlightMeshes.push(ringG);
+        }
+
+        // Red arc (attackers portion)
+        if (redAngle > 0.001) {
+          const geoR = new THREE.RingGeometry(0.28, 0.44, 24, 1, greenAngle, redAngle);
+          geoR.rotateX(-Math.PI / 2);
+          const matR = new THREE.MeshBasicMaterial({ color: COLOR_THREAT, transparent: true, opacity: 0.80, side: THREE.DoubleSide });
+          const ringR = new THREE.Mesh(geoR, matR);
+          ringR.position.copy(pos).setY(yPos);
+          this.scene.add(ringR);
+          this.highlightMeshes.push(ringR);
+        }
+      }
     }
   }
 
@@ -314,7 +351,7 @@ export class Board {
     }
   }
 
-  _showHighlightsCube(selectedPos, legalMoves) {
+  _showHighlightsCube(selectedPos, legalMoves, threatMap = null) {
     const hl = CUBE_SIZE * 1.06;
     const hlGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(hl, hl, hl));
 
@@ -327,8 +364,15 @@ export class Board {
     }
 
     for (const mv of legalMoves) {
+      const key = `${mv.x},${mv.y},${mv.z}`;
+      const threat = threatMap?.get(key) ?? { attackers: 0, defenders: 0 };
+      const total = threat.attackers + threat.defenders;
+      // Lerp green → red based on attacker fraction; pure green when no threats
+      const attackFrac = total === 0 ? 0 : threat.attackers / total;
+      const color = new THREE.Color().copy(COLOR_HIGHLIGHT).lerp(COLOR_THREAT, attackFrac);
+
       const box = new THREE.LineSegments(hlGeo,
-        new THREE.LineBasicMaterial({ color: COLOR_HIGHLIGHT }));
+        new THREE.LineBasicMaterial({ color }));
       box.position.copy(this._cubeCenter(mv.x, mv.y, mv.z));
       this.scene.add(box);
       this.highlightMeshes.push(box);

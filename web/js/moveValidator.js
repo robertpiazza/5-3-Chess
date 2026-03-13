@@ -176,6 +176,37 @@ export function getLegalMoves(boardArr, x, y, z) {
   });
 }
 
+/**
+ * Count how many opponent pieces can recapture at targetPos (attackers) and
+ * how many own pieces besides the moving piece defend it (defenders), evaluated
+ * on the board state AFTER the move (piece relocated, captured piece removed).
+ * Uses pseudo-legal moves so pinned pieces still count as threats.
+ */
+export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
+  // Simulate the board after the move
+  const sim = boardArr.map(p => p.map(r => [...r]));
+  sim[targetPos.x][targetPos.y][targetPos.z] = sim[selectedPos.x][selectedPos.y][selectedPos.z];
+  sim[selectedPos.x][selectedPos.y][selectedPos.z] = null;
+
+  const opponentColor = movingColor === COLOR.WHITE ? COLOR.BLACK : COLOR.WHITE;
+  const { x: tx, y: ty, z: tz } = targetPos;
+  let attackers = 0, defenders = 0;
+
+  for (let x = 0; x < 5; x++)
+    for (let y = 0; y < 5; y++)
+      for (let z = 0; z < 5; z++) {
+        if (x === tx && y === ty && z === tz) continue; // skip the target itself
+        const piece = sim[x][y][z];
+        if (!piece) continue;
+        const moves = pseudoLegalMoves(sim, x, y, z);
+        if (!moves.some(m => m.x === tx && m.y === ty && m.z === tz)) continue;
+        if (piece.color === opponentColor) attackers++;
+        else defenders++;
+      }
+
+  return { attackers, defenders };
+}
+
 // Check if a color has any legal moves at all
 export function hasAnyLegalMove(boardArr, color) {
   for (let x = 0; x < 5; x++)
