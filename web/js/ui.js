@@ -8,9 +8,13 @@ export class UI {
     this.resultText     = document.getElementById('game-over-result');
     this.viewBtn        = document.getElementById('view-toggle-btn');
     this.colorIndicator = document.getElementById('player-color-indicator');
-    this.undoBtn        = document.getElementById('undo-btn');
-    this.undoOverlay    = document.getElementById('undo-request-overlay');
-    this.undoMsg        = document.getElementById('undo-request-msg');
+    this.undoBtn          = document.getElementById('undo-btn');
+    this.undoOverlay      = document.getElementById('undo-request-overlay');
+    this.undoMsg          = document.getElementById('undo-request-msg');
+    this.capturesByWhite  = document.getElementById('captures-by-white');
+    this.capturesByBlack  = document.getElementById('captures-by-black');
+    this.capturesWhiteRow = document.getElementById('captures-white-row');
+    this.capturesBlackRow = document.getElementById('captures-black-row');
 
     // Use onclick so repeated initGame() calls replace the handler cleanly,
     // preventing stacking event listeners across game resets.
@@ -37,6 +41,26 @@ export class UI {
     this.turnDisplay.className = gs.currentTurn === COLOR.BLACK ? 'black-turn' : '';
     this.statusDisplay.textContent = gs.status === 'check'
       ? `⚠ ${name} is in CHECK!` : '';
+    this._updateCaptures(gs);
+  }
+
+  _updateCaptures(gs) {
+    // Unicode symbols for each piece by its original colour
+    const SYM_WHITE = { P: '♙', R: '♖', N: '♘', B: '♗', Q: '♕', K: '♔', U: '🦄' };
+    const SYM_BLACK = { P: '♟', R: '♜', N: '♞', B: '♝', Q: '♛', K: '♚', U: '🦄' };
+    // Sort most-valuable first: Q > R > U > B > N > P
+    const ORDER = { Q: 0, R: 1, U: 2, B: 3, N: 4, P: 5, K: 6 };
+    const sort = arr => [...arr].sort((a, b) => (ORDER[a] ?? 9) - (ORDER[b] ?? 9));
+
+    // captured.w = black pieces white took → show black symbols
+    const byW = sort(gs.captured.w);
+    this.capturesByWhite.textContent = byW.map(t => SYM_BLACK[t] ?? t).join('');
+    this.capturesWhiteRow.classList.toggle('hidden', byW.length === 0);
+
+    // captured.b = white pieces black took → show white symbols
+    const byB = sort(gs.captured.b);
+    this.capturesByBlack.textContent = byB.map(t => SYM_WHITE[t] ?? t).join('');
+    this.capturesBlackRow.classList.toggle('hidden', byB.length === 0);
   }
 
   setViewLabel(mode) {

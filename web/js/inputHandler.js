@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { COLOR, PIECE } from './gameState.js';
-import { getLegalMoves, isInCheck, hasAnyLegalMove } from './moveValidator.js';
+import { getLegalMoves, isInCheck, hasAnyLegalMove, getSquareThreat } from './moveValidator.js';
 
 export class InputHandler {
   /**
@@ -107,7 +107,17 @@ export class InputHandler {
     const moves = getLegalMoves(gs.board, pos.x, pos.y, pos.z);
     gs.selectedPos = pos;
     gs.legalMoves = moves;
-    this.board.showHighlights(pos, moves);
+
+    // Build threat map: for each legal destination, count attackers / defenders
+    const threatMap = new Map();
+    for (const move of moves) {
+      threatMap.set(
+        `${move.x},${move.y},${move.z}`,
+        getSquareThreat(gs.board, move, pos, gs.currentTurn)
+      );
+    }
+
+    this.board.showHighlights(pos, moves, threatMap);
   }
 
   async _executeMove(src, dst) {

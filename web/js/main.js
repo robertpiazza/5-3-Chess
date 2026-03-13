@@ -59,6 +59,9 @@ let aiOpponentColor = null;
 // Whether we are waiting on the opponent to approve an undo
 let _undoPending = false;
 
+// Whether a hint is currently displayed on the board
+let _hintVisible = false;
+
 // Hint button element (grabbed once, reused across game resets)
 const _hintBtn = document.getElementById('hint-btn');
 
@@ -135,6 +138,7 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
   // Reset hint and last-move state for the new game
   board.clearLastMove();
   board.clearHintHighlight();
+  _hintVisible = false;
   _hintBtn.disabled = false;
   _hintBtn.classList.remove('thinking');
   _hintBtn.onclick = showHint;
@@ -150,6 +154,7 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
 
   const onAfterMove = () => {
     board.clearHintHighlight();
+    _hintVisible = false;
     _updateUndoBtn();
   };
 
@@ -159,6 +164,9 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     sendMove,
     onAfterMove,
   );
+
+  // Refresh HUD (clears captured bar on new game)
+  ui.update(gameState);
 }
 
 // ── Undo helpers ──────────────────────────────────────────────────────────────
@@ -168,6 +176,7 @@ function undoLastMove() {
   board.showHighlights(null, []);
   board.clearLastMove();
   board.clearHintHighlight();
+  _hintVisible = false;
   pieceManager.syncFromState();
   ui.hideGameOver();
   ui.update(gameState);
@@ -193,8 +202,14 @@ function showHint() {
   if (activeNetwork && gameState.currentTurn !== activeNetwork.localColor) return;
   if (gameState.status === 'checkmate' || gameState.status === 'stalemate') return;
 
-  // Clear any previous hint and enter "thinking" state
-  board.clearHintHighlight();
+  // Second press while hint is showing → dismiss it
+  if (_hintVisible) {
+    board.clearHintHighlight();
+    _hintVisible = false;
+    return;
+  }
+
+  // Enter "thinking" state
   _hintBtn.disabled = true;
   _hintBtn.classList.add('thinking');
 
@@ -210,6 +225,7 @@ function showHint() {
       gameState.legalMoves  = [];
       board.showHighlights(null, []);
       board.showHintHighlight(move.src, move.dst);
+      _hintVisible = true;
     }
   }, 50);
 }
@@ -232,6 +248,7 @@ async function applyNetworkMove(src, dst, promotionType) {
   board.showHighlights(null, []);
   board.showLastMove(src, dst);
   board.clearHintHighlight();
+  _hintVisible = false;
 
   // Evaluate the new position (same logic as InputHandler._updateGameStatus)
   const color   = gameState.currentTurn;
@@ -266,6 +283,8 @@ async function applyAiMove(src, dst) {
 
   board.showHighlights(null, []);
   board.showLastMove(src, dst);
+  board.clearHintHighlight();
+  _hintVisible = false;
 
   const color   = gameState.currentTurn;
   const inCheck = isInCheck(gameState.board, color);
