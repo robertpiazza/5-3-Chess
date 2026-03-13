@@ -79,6 +79,9 @@ export class GameState {
     this.status = 'playing';   // 'playing' | 'check' | 'checkmate' | 'stalemate'
     this.moveCount = 0;
     this._history = [];        // snapshots for undo
+    // captured.w = piece types captured BY white (black pieces white took)
+    // captured.b = piece types captured BY black (white pieces black took)
+    this.captured = { w: [], b: [] };
   }
 
   get(x, y, z) {
@@ -109,15 +112,21 @@ export class GameState {
 
   // Execute the move in the real game state
   executeMove(src, dst, promotionType = null) {
-    // Save snapshot before applying the move
+    // Save snapshot before applying the move (include captured state for undo)
     this._history.push({
       board:       this.cloneBoard(),
       currentTurn: this.currentTurn,
       status:      this.status,
       moveCount:   this.moveCount,
+      captured:    { w: [...this.captured.w], b: [...this.captured.b] },
     });
 
     const piece = this.get(src.x, src.y, src.z);
+
+    // Record any captured piece before overwriting the destination
+    const victim = this.get(dst.x, dst.y, dst.z);
+    if (victim) this.captured[piece.color].push(victim.type);
+
     this.set(dst.x, dst.y, dst.z, piece);
     this.set(src.x, src.y, src.z, null);
 
@@ -143,6 +152,7 @@ export class GameState {
     this.currentTurn = snap.currentTurn;
     this.status      = snap.status;
     this.moveCount   = snap.moveCount;
+    this.captured    = snap.captured;
     this.selectedPos = null;
     this.legalMoves  = [];
     return true;

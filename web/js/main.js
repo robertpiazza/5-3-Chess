@@ -164,6 +164,9 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     sendMove,
     onAfterMove,
   );
+
+  // Refresh HUD (clears captured bar on new game)
+  ui.update(gameState);
 }
 
 // ── Undo helpers ──────────────────────────────────────────────────────────────
