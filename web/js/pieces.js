@@ -15,7 +15,10 @@ const BODY_MAT_PARAMS = {
   [COLOR.BLACK]: { specular: 0xaaaaaa, shininess: 70 },
 };
 
-const UNICORN_HORN_COLOR = 0x1abc9c;
+const UNICORN_HORN_COLOR = {
+  [COLOR.WHITE]: 0x111111,  // black horn on white unicorn
+  [COLOR.BLACK]: 0xffffff,  // white horn on black unicorn
+};
 
 // King height in world units — all other pieces scale proportionally
 const TARGET_HEIGHT = 1.50;   // king = 9.5 cm → 1.50 world units
@@ -130,13 +133,13 @@ function _makeBody(pieceType, color) {
     // Horn geometry/position were originally tuned at TARGET_HEIGHT (9.5 cm scale).
     // Scale them down by the same ratio so they stay proportional.
     const hornScale = PIECE_HEIGHT_CM.knight / 9.5;  // 6.0 / 9.5
-    const hornMat = new THREE.MeshPhongMaterial({ color: UNICORN_HORN_COLOR, specular: 0x999999, shininess: 90 });
+    const hornMat = new THREE.MeshPhongMaterial({ color: UNICORN_HORN_COLOR[color], specular: 0x999999, shininess: 90 });
     const horn = new THREE.Mesh(
-      new THREE.ConeGeometry(0.05 * hornScale, 0.21 * hornScale, 8),
+      new THREE.ConeGeometry(0.05 * hornScale, 0.42 * hornScale, 8),
       hornMat
     );
-    horn.position.set(-0.06 * hornScale, 0.69 * hornScale, 0.00);
-    horn.rotation.set(0.00, 0.00, 0.80);
+    horn.position.set(-0.06 * hornScale, 1.35 * hornScale, 0.00);
+    horn.rotation.set(0.00, 0.00, 0.60);
     group.add(horn);
   }
 

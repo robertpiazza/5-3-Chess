@@ -482,6 +482,10 @@ body {
   min-width: 200px;
 }
 
+#promotion-box .lobby-title { font-size: 56px; }
+#promotion-box .lobby-label { font-size: 28px; }
+#promotion-box button        { font-size: 30px; width: auto; padding: 10px 32px; }
+
 /* Game over overlay */
 #game-over-overlay {
   position: fixed;
