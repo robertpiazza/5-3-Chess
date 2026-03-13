@@ -245,8 +245,14 @@ export function getSquareThreat(boardArr, targetPos, selectedPos, movingColor) {
   // sitting on the target (and thus at risk on the next capture).
   const movingPiece = boardArr[selectedPos.x][selectedPos.y][selectedPos.z];
   let onSquareValue = PIECE_VALUES[movingPiece.type] ?? 0;
-  let greenScore = 0;
-  let redScore   = 0;
+
+  // If the move is a capture, seed greenScore with the captured piece's value
+  // (that gain is immediate and unconditional regardless of what follows).
+  const capturedPiece = boardArr[tx][ty][tz];
+  let greenScore = (capturedPiece && capturedPiece.color === opponentColor)
+    ? (PIECE_VALUES[capturedPiece.type] ?? 0)
+    : 0;
+  let redScore = 0;
   let ai = 0, di = 0;
 
   while (ai < attackerVals.length) {
