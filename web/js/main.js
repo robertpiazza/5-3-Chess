@@ -59,6 +59,9 @@ let aiOpponentColor = null;
 // Whether we are waiting on the opponent to approve an undo
 let _undoPending = false;
 
+// Hint button element (grabbed once, reused across game resets)
+const _hintBtn = document.getElementById('hint-btn');
+
 /**
  * @param {boolean}     keepViewMode  Preserve current board view (layers/cube)
  * @param {object|null} netOpts       { network: NetworkManager, localColor: string }
@@ -129,6 +132,12 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
 
   _undoPending = false;
 
+  // Reset hint state for the new game
+  board.clearHintHighlight();
+  _hintBtn.disabled = false;
+  _hintBtn.classList.remove('thinking');
+  _hintBtn.onclick = showHint;
+
   const isNetwork = !!netOpts;
 
   // Configure undo button label and handler for this game mode
@@ -138,11 +147,16 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     ui.setUndoBtn(false, 'Request Undo', requestNetworkUndo);
   }
 
+  const onAfterMove = () => {
+    board.clearHintHighlight();
+    _updateUndoBtn();
+  };
+
   inputHandler = new InputHandler(
     camera, renderer, gameState, board, pieceManager, ui,
     netOpts?.localColor ?? aiOpts?.playerColor ?? null,
     sendMove,
-    _updateUndoBtn,
+    onAfterMove,
   );
 }
 
@@ -151,6 +165,7 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
 function undoLastMove() {
   if (!gameState.undoMove()) return;
   board.showHighlights(null, []);
+  board.clearHintHighlight();
   pieceManager.syncFromState();
   ui.hideGameOver();
   ui.update(gameState);
@@ -169,6 +184,34 @@ function _updateUndoBtn() {
   }
 }
 
+// ── Hint helpers ──────────────────────────────────────────────────────────────
+
+function showHint() {
+  // In network mode only allow hints on your own turn
+  if (activeNetwork && gameState.currentTurn !== activeNetwork.localColor) return;
+  if (gameState.status === 'checkmate' || gameState.status === 'stalemate') return;
+
+  // Clear any previous hint and enter "thinking" state
+  board.clearHintHighlight();
+  _hintBtn.disabled = true;
+  _hintBtn.classList.add('thinking');
+
+  // Run AI asynchronously so the browser can render the pulse animation first
+  setTimeout(() => {
+    const move = findBestMove(gameState.board, gameState.currentTurn);
+    _hintBtn.classList.remove('thinking');
+    _hintBtn.disabled = false;
+
+    if (move) {
+      // Clear any active piece selection so the hint is clearly visible
+      gameState.selectedPos = null;
+      gameState.legalMoves  = [];
+      board.showHighlights(null, []);
+      board.showHintHighlight(move.src, move.dst);
+    }
+  }, 50);
+}
+
 function requestNetworkUndo() {
   if (_undoPending || !activeNetwork) return;
   _undoPending = true;
@@ -185,6 +228,7 @@ async function applyNetworkMove(src, dst, promotionType) {
   if (promotionType) pieceManager.refreshCell(dst.x, dst.y, dst.z);
 
   board.showHighlights(null, []);
+  board.clearHintHighlight();
 
   // Evaluate the new position (same logic as InputHandler._updateGameStatus)
   const color   = gameState.currentTurn;

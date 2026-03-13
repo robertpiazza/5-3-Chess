@@ -492,6 +492,46 @@ body {
   color: #e0e0e0;
 }
 
+/* ── Hint button ────────────────────────────────────────────────────────── */
+
+#hint-btn {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 22px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: background 0.2s, transform 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#hint-btn:hover:not(:disabled) {
+  background: rgba(0, 204, 255, 0.30);
+  transform: scale(1.1);
+}
+
+#hint-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#hint-btn.thinking {
+  animation: hint-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes hint-pulse {
+  from { background: rgba(0, 0, 0, 0.55); }
+  to   { background: rgba(0, 204, 255, 0.35); }
+}
+
 /* ── Undo request overlay ───────────────────────────────────────────────── */
 
 #undo-request-overlay {
