@@ -43,9 +43,11 @@ export class Board {
     else this._buildCube();
     this.clearHighlights();
     this.clearHintHighlight();
-    // Rebuild last-move indicator in the new view style
+    // Rebuild last-move indicator in the new view style.
+    // showLastMove() removes the old meshes from the scene before adding new
+    // ones — don't pre-clear lastMoveMeshes or those scene.remove() calls
+    // will iterate an empty array and the old geometry will stay rendered.
     const s = this._lastMoveSrc, d = this._lastMoveDst;
-    this.lastMoveMeshes = [];
     if (s && d) this.showLastMove(s, d);
   }
 
