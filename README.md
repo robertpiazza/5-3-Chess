@@ -8,7 +8,7 @@ A browser-based implementation of **Raumschach** (5×5×5 three-dimensional ches
 
 ## What is Raumschach?
 
-Raumschach ("space chess") is a 3D chess variant invented by Ferdinand Maack in 1907. The game is played on a 5×5×5 board — five stacked 5×5 layers — with seven piece types, including two pieces unique to 3D chess.
+Raumschach ("space chess") is a 3D chess variant invented by Ferdinand Maack in 1907. The game is played on a 5×5×5 board — five stacked 5×5 layers — with seven piece types, including the unicorn, unique to 3D chess.
 
 ### Pieces
 
@@ -120,11 +120,6 @@ In the exploded view, world Y position = `z × 2.2`.
 
 ---
 
-## Development History
-
-The project started as a VR app for Meta Quest (Unity + Photon Fusion + Stockfish AI) and pivoted to a browser-based MVP for faster iteration. The original Unity project configuration is preserved in `UnityProject/` but contains no gameplay code.
-
----
 
 ## License
 
