@@ -103,8 +103,13 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     pieceManager.syncFromState();
   }
 
-  // "New Game" / "Play Again" returns to the lobby
-  const onNewGame = () => { ui.showLobby('mode'); };
+  // "New Game" / "Play Again" returns to the lobby.
+  // Delete the Firebase room immediately if we're in a network game — the room
+  // is useless once either player leaves, so there's no reason to keep it.
+  const onNewGame = () => {
+    if (activeNetwork) activeNetwork.deleteRoom();
+    ui.showLobby('mode');
+  };
 
   ui = new UI(onNewGame, switchViewMode);
   ui.hideGameOver();
@@ -156,6 +161,14 @@ function initGame(keepViewMode = false, netOpts = null, aiOpts = null) {
     board.clearHintHighlight();
     _hintVisible = false;
     _updateUndoBtn();
+    // If the local player's move ended the game in a network session, schedule
+    // room deletion. The opponent sees the same 60 s window before their own
+    // timeout fires, but deleteRoom() is idempotent so both calls are harmless.
+    if (activeNetwork &&
+        (gameState.status === 'checkmate' || gameState.status === 'stalemate')) {
+      const net = activeNetwork;
+      setTimeout(() => net.deleteRoom(), 60_000);
+    }
   };
 
   inputHandler = new InputHandler(
@@ -258,6 +271,10 @@ async function applyNetworkMove(src, dst, promotionType) {
   if (!anyMove) {
     gameState.status = inCheck ? 'checkmate' : 'stalemate';
     ui.showGameOver(gameState.status, color);
+    // Schedule room deletion after 60 s — gives both players time to see the
+    // result and click "Play Again" (which deletes immediately via onNewGame).
+    const net = activeNetwork;
+    setTimeout(() => net.deleteRoom(), 60_000);
   } else {
     gameState.status = inCheck ? 'check' : 'playing';
   }
@@ -498,7 +515,11 @@ function _setupLobby() {
 
   // ── Back buttons ────────────────────────────────────────────────────────
   document.getElementById('btn-back-host').addEventListener('click', () => {
-    if (activeNetwork) { activeNetwork.detach(); activeNetwork = null; }
+    if (activeNetwork) {
+      activeNetwork.deleteRoom();   // delete the waiting room immediately
+      activeNetwork.detach();
+      activeNetwork = null;
+    }
     ui.showLobby('mode');
   });
 

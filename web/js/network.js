@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase-app';
-import { getDatabase, ref, set, push, get, onValue, serverTimestamp } from 'firebase-database';
+import { getDatabase, ref, set, push, get, onValue, remove, serverTimestamp } from 'firebase-database';
 
 import { firebaseConfig } from './firebaseConfig.js';
 import { COLOR } from './gameState.js';
@@ -172,6 +172,17 @@ export class NetworkManager {
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Delete the entire room from Firebase. Safe to call multiple times —
+   * subsequent calls after the first are no-ops (roomCode is cleared).
+   */
+  async deleteRoom() {
+    if (!this.roomCode) return;
+    const code = this.roomCode;
+    this.roomCode = null;   // prevent double-delete if called again before promise resolves
+    await remove(ref(_db, `games/${code}`));
+  }
 
   /** Detach all Firebase listeners. Call before discarding this instance. */
   detach() {
