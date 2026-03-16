@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Knight Orientation Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a2e; color: #ccc; font-family: monospace; }
+
+    #controls {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: flex-start;
+      padding: 8px 16px 10px;
+      background: rgba(10,10,20,0.93); border-bottom: 1px solid #334;
+    }
+
+    .section-title {
+      width: 100%; font-size: 10px; color: #556; text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: -14px;
+    }
+
+    .ctrl-group { display: flex; flex-direction: column; gap: 3px; }
+    .ctrl-group label { font-size: 11px; color: #888; }
+    .ctrl-group .row { display: flex; align-items: center; gap: 8px; }
+    input[type=range] { width: 140px; cursor: pointer; }
+    .val { font-size: 12px; color: #eee; min-width: 48px; text-align: right; }
+
+    #legend { font-size: 11px; color: #777; line-height: 1.8; align-self: center; }
+
+    #canvas-wrap { position: fixed; left: 0; right: 0; bottom: 0; }
+    #canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+
+    #copy-btn {
+      align-self: center; margin-left: auto;
+      background: #1a6; color: #fff; border: none; border-radius: 4px;
+      padding: 6px 14px; font-family: monospace; font-size: 12px; cursor: pointer;
+    }
+    #copy-btn:hover { background: #1c8; }
+    #copy-out { align-self: center; font-size: 11px; color: #1abc9c; max-width: 320px; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <div class="section-title">Knight rotation</div>
+
+    <div class="ctrl-group">
+      <label>WHITE Y rotation</label>
+      <div class="row">
+        <input type="range" id="white-rot" min="-180" max="180" step="1" value="90" />
+        <span class="val" id="white-val">90°</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>BLACK Y rotation</label>
+      <div class="row">
+        <input type="range" id="black-rot" min="-180" max="180" step="1" value="-90" />
+        <span class="val" id="black-val">-90°</span>
+      </div>
+    </div>
+
+    <div class="section-title">Unicorn horn position &amp; angle</div>
+
+    <div class="ctrl-group">
+      <label>Horn X</label>
+      <div class="row">
+        <input type="range" id="horn-x" min="-0.4" max="0.4" step="0.01" value="0.0" />
+        <span class="val" id="hx-val">0.00</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Horn Y</label>
+      <div class="row">
+        <input type="range" id="horn-y" min="0.2" max="1.1" step="0.01" value="0.60" />
+        <span class="val" id="hy-val">0.60</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Horn Z</label>
+      <div class="row">
+        <input type="range" id="horn-z" min="-0.4" max="0.4" step="0.01" value="0.10" />
+        <span class="val" id="hz-val">0.10</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Horn tilt X (rot.x)</label>
+      <div class="row">
+        <input type="range" id="horn-rx" min="-1.6" max="1.6" step="0.01" value="0.45" />
+        <span class="val" id="hrx-val">0.45</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Horn tilt Y (rot.y)</label>
+      <div class="row">
+        <input type="range" id="horn-ry" min="-1.6" max="1.6" step="0.01" value="0.00" />
+        <span class="val" id="hry-val">0.00</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Horn tilt Z (rot.z)</label>
+      <div class="row">
+        <input type="range" id="horn-rz" min="-1.6" max="1.6" step="0.01" value="0.00" />
+        <span class="val" id="hrz-val">0.00</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Horn length</label>
+      <div class="row">
+        <input type="range" id="horn-len" min="0.1" max="0.7" step="0.01" value="0.35" />
+        <span class="val" id="hlen-val">0.35</span>
+      </div>
+    </div>
+
+    <button id="copy-btn">Copy values</button>
+    <span id="copy-out"></span>
+
+    <div id="legend">
+      <b style="color:#e74c3c">━ +X</b>&ensp;
+      <b style="color:#3498db">━ +Z</b>&ensp;
+      <b style="color:#f39c12">▲ nose</b>&ensp;
+      <b style="color:#1abc9c">│ horn</b><br>
+      Drag to orbit &nbsp;|&nbsp; Scroll to zoom
+    </div>
+  </div>
+
+  <div id="canvas-wrap"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader }    from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ── Layout: compute controls bar height after paint ────────────────────────
+    const wrap = document.getElementById('canvas-wrap');
+    function fitCanvas() {
+      const barH = document.getElementById('controls').offsetHeight;
+      wrap.style.top = barH + 'px';
+    }
+    fitCanvas();
+    window.addEventListener('resize', fitCanvas);
+
+    // ── Renderer ───────────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(devicePixelRatio);
+    wrap.appendChild(renderer.domElement);
+
+    function resize() {
+      const W = wrap.clientWidth, H = wrap.clientHeight;
+      renderer.setSize(W, H);
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+    }
+
+    // ── Scene / Camera ─────────────────────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    camera.position.set(0, 6, 0.01);
+    camera.lookAt(0, 0, 0);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    // ── Lighting ───────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const sun = new THREE.DirectionalLight(0xfff8e8, 1.2);
+    sun.position.set(4, 10, 6);
+    scene.add(sun);
+
+    // ── Reference helpers ──────────────────────────────────────────────────────
+    scene.add(new THREE.GridHelper(12, 12, 0x334466, 0x223344));
+    scene.add(new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0.01,0), 2, 0xe74c3c, 0.25, 0.12));
+    scene.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0.01,0), 2, 0x3498db, 0.25, 0.12));
+
+    function spriteLabel(text, x, z) {
+      const c = document.createElement('canvas'); c.width = 128; c.height = 40;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#aabbcc'; ctx.font = 'bold 15px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, 64, 20);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }));
+      sp.scale.set(1.1, 0.35, 1); sp.position.set(x, 0.05, z);
+      scene.add(sp);
+    }
+    // Show only the unicorn pair so the horn controls are unambiguous
+    // Plus a plain knight pair for rotation reference
+    const XS = [-3, -1, 1, 3];
+    spriteLabel('W.Knight',  XS[0], -1.6);
+    spriteLabel('B.Knight',  XS[1], -1.6);
+    spriteLabel('W.Unicorn', XS[2], -1.6);
+    spriteLabel('B.Unicorn', XS[3], -1.6);
+
+    // ── Model helpers ──────────────────────────────────────────────────────────
+    const TARGET_HEIGHT = 0.75;
+
+    function normalize(gltfScene) {
+      const box1 = new THREE.Box3().setFromObject(gltfScene);
+      gltfScene.scale.setScalar(TARGET_HEIGHT / box1.getSize(new THREE.Vector3()).y);
+      gltfScene.updateMatrixWorld(true);
+      const box2 = new THREE.Box3().setFromObject(gltfScene);
+      const ctr  = box2.getCenter(new THREE.Vector3());
+      const w    = new THREE.Group();
+      gltfScene.position.set(-ctr.x, -box2.min.y, -ctr.z);
+      w.add(gltfScene);
+      return w;
+    }
+
+    function colorize(group, hex) {
+      group.traverse(c => { if (c.isMesh) c.material = new THREE.MeshLambertMaterial({ color: hex }); });
+    }
+
+    function addNose(group) {
+      const m = new THREE.Mesh(
+        new THREE.ConeGeometry(0.045, 0.22, 8),
+        new THREE.MeshBasicMaterial({ color: 0xf39c12 })
+      );
+      m.rotation.x = Math.PI / 2;
+      m.position.set(0, 0.40, 0.32);
+      group.add(m);
+    }
+
+    // ── Pieces ─────────────────────────────────────────────────────────────────
+    let wKnight, bKnight, wUnicorn, bUnicorn;
+    let wHorn, bHorn;   // refs to horn meshes so we can update them live
+
+    function makeHorn() {
+      const len = parseFloat(document.getElementById('horn-len').value);
+      return new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, len, 8),
+        new THREE.MeshLambertMaterial({ color: 0x1abc9c })
+      );
+    }
+
+    function positionHorn(horn) {
+      horn.position.set(
+        parseFloat(document.getElementById('horn-x').value),
+        parseFloat(document.getElementById('horn-y').value),
+        parseFloat(document.getElementById('horn-z').value)
+      );
+      horn.rotation.x = parseFloat(document.getElementById('horn-rx').value);
+      horn.rotation.y = parseFloat(document.getElementById('horn-ry').value);
+      horn.rotation.z = parseFloat(document.getElementById('horn-rz').value);
+    }
+
+    new GLTFLoader().load('./models/knight.glb', gltf => {
+      const tmpl = normalize(gltf.scene);
+
+      wKnight  = tmpl.clone(true); colorize(wKnight,  0xf0e6d3); addNose(wKnight);
+      bKnight  = tmpl.clone(true); colorize(bKnight,  0x2c2c3a); addNose(bKnight);
+      wUnicorn = tmpl.clone(true); colorize(wUnicorn, 0xf0e6d3); addNose(wUnicorn);
+      bUnicorn = tmpl.clone(true); colorize(bUnicorn, 0x2c2c3a); addNose(bUnicorn);
+
+      wHorn = makeHorn(); positionHorn(wHorn); wUnicorn.add(wHorn);
+      bHorn = makeHorn(); positionHorn(bHorn); bUnicorn.add(bHorn);
+
+      [wKnight, bKnight, wUnicorn, bUnicorn].forEach((p, i) => {
+        p.position.x = XS[i];
+        scene.add(p);
+      });
+
+      applyRotations();
+    });
+
+    // ── Rotation sliders ───────────────────────────────────────────────────────
+    function applyRotations() {
+      if (!wKnight) return;
+      const wy = parseFloat(document.getElementById('white-rot').value) * Math.PI / 180;
+      const by = parseFloat(document.getElementById('black-rot').value) * Math.PI / 180;
+      [wKnight, wUnicorn].forEach(p => p.rotation.y = wy);
+      [bKnight, bUnicorn].forEach(p => p.rotation.y = by);
+    }
+
+    // ── Horn sliders ───────────────────────────────────────────────────────────
+    function rebuildHorns() {
+      if (!wUnicorn) return;
+      const len = parseFloat(document.getElementById('horn-len').value);
+
+      // Rebuild geometry when length changes (can't mutate ConeGeometry)
+      wUnicorn.remove(wHorn);
+      bUnicorn.remove(bHorn);
+      wHorn = new THREE.Mesh(new THREE.ConeGeometry(0.05, len, 8), new THREE.MeshLambertMaterial({ color: 0x1abc9c }));
+      bHorn = new THREE.Mesh(new THREE.ConeGeometry(0.05, len, 8), new THREE.MeshLambertMaterial({ color: 0x1abc9c }));
+      positionHorn(wHorn);
+      positionHorn(bHorn);
+      wUnicorn.add(wHorn);
+      bUnicorn.add(bHorn);
+    }
+
+    function updateHornTransform() {
+      if (!wHorn) return;
+      positionHorn(wHorn);
+      positionHorn(bHorn);
+    }
+
+    // Wire all sliders
+    function wire(id, valId, fmt, cb) {
+      const el = document.getElementById(id);
+      const vEl = document.getElementById(valId);
+      el.addEventListener('input', () => { vEl.textContent = fmt(el.value); cb(); });
+    }
+
+    wire('white-rot', 'white-val', v => v + '°',   applyRotations);
+    wire('black-rot', 'black-val', v => v + '°',   applyRotations);
+    wire('horn-x',    'hx-val',    v => parseFloat(v).toFixed(2), updateHornTransform);
+    wire('horn-y',    'hy-val',    v => parseFloat(v).toFixed(2), updateHornTransform);
+    wire('horn-z',    'hz-val',    v => parseFloat(v).toFixed(2), updateHornTransform);
+    wire('horn-rx',   'hrx-val',   v => parseFloat(v).toFixed(2), updateHornTransform);
+    wire('horn-ry',   'hry-val',   v => parseFloat(v).toFixed(2), updateHornTransform);
+    wire('horn-rz',   'hrz-val',   v => parseFloat(v).toFixed(2), updateHornTransform);
+    wire('horn-len',  'hlen-val',  v => parseFloat(v).toFixed(2), rebuildHorns);
+
+    // ── Copy button ────────────────────────────────────────────────────────────
+    document.getElementById('copy-btn').addEventListener('click', () => {
+      const x   = parseFloat(document.getElementById('horn-x').value).toFixed(2);
+      const y   = parseFloat(document.getElementById('horn-y').value).toFixed(2);
+      const z   = parseFloat(document.getElementById('horn-z').value).toFixed(2);
+      const rx  = parseFloat(document.getElementById('horn-rx').value).toFixed(2);
+      const ry  = parseFloat(document.getElementById('horn-ry').value).toFixed(2);
+      const rz  = parseFloat(document.getElementById('horn-rz').value).toFixed(2);
+      const len = parseFloat(document.getElementById('horn-len').value).toFixed(2);
+      const wr  = parseFloat(document.getElementById('white-rot').value);
+      const br  = parseFloat(document.getElementById('black-rot').value);
+      const out = `horn.position.set(${x}, ${y}, ${z}); horn.rotation.set(${rx}, ${ry}, ${rz}); // len=${len}  |  W:${wr}° B:${br}°`;
+      navigator.clipboard.writeText(out).catch(() => {});
+      document.getElementById('copy-out').textContent = out;
+    });
+
+    // ── Render loop ────────────────────────────────────────────────────────────
+    (function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    })();
+
+    setTimeout(resize, 50);
+    window.addEventListener('resize', resize);
+  </script>
+</body>
+</html>

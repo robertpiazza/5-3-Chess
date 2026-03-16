@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5³ Chess — Raumschach</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ── HUD ─────────────────────────────────────────────────────────────── -->
+  <div id="hud">
+    <div id="title">5³ Chess</div>
+    <div id="turn-display">White's Turn</div>
+    <div id="player-color-indicator" class="hidden"></div>
+    <div id="status-display"></div>
+  </div>
+
+  <!-- ── Hamburger menu (top right) ───────────────────────────────────────── -->
+  <div id="hamburger-menu">
+    <button id="hamburger-btn" aria-label="Menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div id="hamburger-dropdown">
+      <button id="new-game-btn" disabled>New Game</button>
+      <button id="view-toggle-btn" disabled>Cube View</button>
+      <button id="undo-btn" disabled>Undo</button>
+      <button id="moves-btn">? How pieces move</button>
+    </div>
+  </div>
+
+  <!-- ── Captured pieces bar ──────────────────────────────────────────────── -->
+  <div id="captures-bar">
+    <div class="captures-row hidden" id="captures-white-row">
+      <span class="captures-label">♔</span>
+      <span class="captures-pieces" id="captures-by-white"></span>
+    </div>
+    <div class="captures-row hidden" id="captures-black-row">
+      <span class="captures-label">♚</span>
+      <span class="captures-pieces" id="captures-by-black"></span>
+    </div>
+  </div>
+
+  <!-- ── Hint button ──────────────────────────────────────────────────────── -->
+  <button id="hint-btn" title="Get a move hint" disabled>💡</button>
+
+  <!-- ── Lobby overlay ────────────────────────────────────────────────────── -->
+  <div id="lobby-overlay">
+    <div id="lobby-box">
+
+      <!-- Panel 1: mode selection -->
+      <div id="lobby-mode">
+        <div class="lobby-title">5³ Chess</div>
+        <div class="lobby-subtitle">Raumschach — 5×5×5</div>
+        <button id="btn-create" disabled>Create Game</button>
+        <button id="btn-join-panel" disabled>Join Game</button>
+        <button id="btn-local" disabled>Local Play</button>
+        <button id="btn-ai" disabled>vs AI</button>
+        <div id="lobby-loading">Loading models…</div>
+      </div>
+
+      <!-- Panel 2: host waiting for opponent -->
+      <div id="lobby-host" class="hidden">
+        <button class="btn-back" id="btn-back-host">← Cancel</button>
+        <div class="lobby-title">Waiting for opponent</div>
+        <div class="lobby-label">Share this code:</div>
+        <div id="room-code-display">——————</div>
+        <button id="btn-copy-code">Copy Code</button>
+      </div>
+
+      <!-- Panel 4: vs AI — color choice -->
+      <div id="lobby-ai" class="hidden">
+        <button class="btn-back" id="btn-back-ai">← Back</button>
+        <div class="lobby-title">vs AI</div>
+        <div class="lobby-label">Choose your color:</div>
+        <button id="btn-ai-white">Play as White</button>
+        <button id="btn-ai-black">Play as Black</button>
+        <button id="btn-ai-random">Random</button>
+      </div>
+
+      <!-- Panel 3: guest entering a room code -->
+      <div id="lobby-join" class="hidden">
+        <button class="btn-back" id="btn-back-join">← Back</button>
+        <div class="lobby-title">Join a Game</div>
+        <div class="lobby-label">Enter room code:</div>
+        <input id="room-code-input" type="text" maxlength="6"
+               placeholder="XXXXXX" autocomplete="off" spellcheck="false" />
+        <button id="btn-join">Join</button>
+        <div id="join-error" class="hidden">Room not found — check the code.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Piece moves reference modal ─────────────────────────────────────── -->
+  <div id="moves-modal" class="hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div id="moves-box">
+      <div id="moves-title">How Pieces Move</div>
+      <div id="moves-subtitle">5³ Chess is played on a 5×5×5 board — pieces move in full 3D space.</div>
+      <table id="moves-table">
+        <thead>
+          <tr><th></th><th>Piece</th><th>Movement</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="dot rook"></span></td>
+            <td>Rook</td>
+            <td>Slides any distance along one axis — X, Y, or Z (6 directions)</td>
+          </tr>
+          <tr>
+            <td><span class="dot bishop"></span></td>
+            <td>Bishop</td>
+            <td>Slides along face diagonals — exactly 2 axes change together (12 directions)</td>
+          </tr>
+          <tr>
+            <td><span class="dot unicorn"></span></td>
+            <td>Unicorn</td>
+            <td>Slides along space diagonals — all 3 axes change together (8 directions)</td>
+          </tr>
+          <tr>
+            <td><span class="dot queen"></span></td>
+            <td>Queen</td>
+            <td>Combines Rook + Bishop + Unicorn — slides in all 26 directions</td>
+          </tr>
+          <tr>
+            <td><span class="dot king"></span></td>
+            <td>King</td>
+            <td>One step in any of the 26 directions — must stay out of check</td>
+          </tr>
+          <tr>
+            <td><span class="dot knight"></span></td>
+            <td>Knight</td>
+            <td>L-shape in 3D: 2 squares on one axis + 1 on another; jumps over pieces (up to 24 moves)</td>
+          </tr>
+          <tr>
+            <td><span class="dot pawn"></span></td>
+            <td>Pawn</td>
+            <td>Advances one layer forward (White: +Z, Black: −Z); captures one step diagonally forward; promotes on the far layer</td>
+          </tr>
+        </tbody>
+      </table>
+      <button onclick="document.getElementById('moves-modal').classList.add('hidden')">Close</button>
+    </div>
+  </div>
+
+  <!-- ── Undo request overlay ─────────────────────────────────────────────── -->
+  <div id="undo-request-overlay" class="hidden">
+    <div id="undo-request-box">
+      <div id="undo-request-msg"></div>
+      <div id="undo-request-buttons" class="hidden">
+        <button id="undo-accept-btn">Accept</button>
+        <button id="undo-decline-btn">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pawn promotion overlay ──────────────────────────────────────────── -->
+  <div id="promotion-overlay" class="hidden">
+    <div id="promotion-box">
+      <div class="lobby-title">Pawn Promotion</div>
+      <div class="lobby-label">Choose a piece:</div>
+      <button data-piece="Q">♛ Queen</button>
+      <button data-piece="R">♜ Rook</button>
+      <button data-piece="B">♝ Bishop</button>
+      <button data-piece="N">♞ Knight</button>
+      <button data-piece="U">🦄 Unicorn</button>
+    </div>
+  </div>
+
+  <!-- ── Game-over overlay ─────────────────────────────────────────────────── -->
+  <div id="game-over-overlay" class="hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div id="game-over-box">
+      <div id="game-over-title">Game Over</div>
+      <div id="game-over-result"></div>
+      <button id="play-again-btn">Play Again</button>
+      <button id="review-board-btn">Review Board</button>
+    </div>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three":              "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/":      "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/",
+      "firebase-app":       "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+      "firebase-database":  "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+  <script>
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerDropdown = document.getElementById('hamburger-dropdown');
+    const movesBtn = document.getElementById('moves-btn');
+    const movesModal = document.getElementById('moves-modal');
+
+    hamburgerBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      hamburgerDropdown.classList.toggle('open');
+    });
+
+    movesBtn.addEventListener('click', () => {
+      movesModal.classList.remove('hidden');
+      hamburgerDropdown.classList.remove('open');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', e => {
+      if (!document.getElementById('hamburger-menu').contains(e.target)) {
+        hamburgerDropdown.classList.remove('open');
+      }
+    });
+
+    // Close dropdown after New Game / View Toggle are clicked
+    hamburgerDropdown.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON' && e.target.id !== 'moves-btn') {
+        hamburgerDropdown.classList.remove('open');
+      }
+    });
+  </script>
+</body>
+</html>
